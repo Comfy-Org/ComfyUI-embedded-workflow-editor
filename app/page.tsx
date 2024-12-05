@@ -30,6 +30,10 @@ export default function Home() {
   useEffect(() => {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+      const savebtn = window.document.querySelector(
+        "#save-workflow"
+      ) as HTMLButtonElement;
+      savebtn?.click();
       // editor.getAction("editor.action.formatDocument")!.run();
 
       // assume editing_workflow_json is latest
@@ -37,10 +41,6 @@ export default function Home() {
       // const workflow = tryMinifyJson(persistState.editing_workflow_json);
       // const modifiedMetadata = { workflow };
       // await saveCurrentFile(tasklist, modifiedMetadata);
-
-      (
-        window.document.querySelector("#save-workflow") as HTMLButtonElement
-      )?.click();
     });
   }, [monaco, editor]);
 
@@ -249,7 +249,7 @@ export default function Home() {
               onClick={async () => {
                 const workflow = tryMinifyJson(snap.editing_workflow_json);
                 const modifiedMetadata = { workflow };
-                await saveCurrentFile(tasklist, modifiedMetadata);
+                await saveCurrentFile(modifiedMetadata);
               }}
             >
               Save exif into image{" "}
@@ -306,10 +306,7 @@ export default function Home() {
     </div>
   );
 
-  async function saveCurrentFile(
-    tasklist,
-    modifiedMetadata: { workflow: string }
-  ) {
+  async function saveCurrentFile(modifiedMetadata: { workflow: string }) {
     const file = tasklist[persistState.editing_index].file;
     const filename = persistState.editing_filename;
     if (!file) return;

@@ -1,5 +1,13 @@
-# ComfyUI embeded workflow editor
+# ComfyUI embedded workflow editor
 
-purpose: 
+In-place embedded workflow-exif editing experience for ComfyUI generated images.
 
-Provide a in-place workflow editing experience for ComfyUI generated images.
+![screenshot](docs/preview.png)
+
+## Usage
+
+Open https://comfyui-embeded-workflow-editor.vercel.app/
+
+## Reference
+
+repo https://github.com/snomiao/ComfyUI-embeded-workflow-editor

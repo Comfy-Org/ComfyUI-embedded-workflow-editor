@@ -11,6 +11,9 @@ import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo, setToPngBuffer } from "./utils/exif";
 
+/** 
+ @author (copyleft) @snomiao 2024
+*/
 export default function Home() {
   const snap = useSnapshot(persistState);
   // const uiSnap = useSnapshot(uiState);
@@ -42,13 +45,13 @@ export default function Home() {
 
   // when trying to enqueue, try ensure the output with same prefix with the input file
   return (
-    <div className="flex flex-row gap-1 justify-center">
-      <div className="flex flex-col gap-4 config bg-dark shadow-lg p-4 w-[40em] max-h-screen">
+    <div className="flex flex-row gap-1 justify-center rounded-lg">
+      <div className="flex flex-col gap-4 config bg-dark shadow-lg p-4 w-[40em] max-h-screen rounded-lg">
         <h2 className="text-lg font-bold">ComfyUI Workflow Editor</h2>
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
-              Input images by (supports *.png now):
+              Input images by (only supports *.png now):
             </label>
             &nbsp;
             <span>{workingDir ? "✅ Linked" : ""}</span>
@@ -121,6 +124,7 @@ export default function Home() {
         Editable Workflows:
         <fieldset>
           <ul className={clsx("flex flex-col gap-1")}>
+            {!tasklist.length && <div>Nothing editable yet</div>}
             {tasklist.map((e, i) => {
               const id = md5(e.name);
               const editingTask = tasklist[snap.editing_index];
@@ -262,6 +266,11 @@ export default function Home() {
           }}
         />
       </div>
+      <span id="forkongithub">
+        <a href="https://github.com/snomiao/ComfyUI-embeded-workflow-editor" target="_blank">
+          Fork me on GitHub
+        </a>
+      </span>
     </div>
   );
 
@@ -308,7 +317,7 @@ export default function Home() {
       .toArray();
     setTasklist(readed);
     if (snap.editing_index === -1) chooseNthFileToEdit(readed, 0);
-    return readed
+    return readed;
   }
 }
 

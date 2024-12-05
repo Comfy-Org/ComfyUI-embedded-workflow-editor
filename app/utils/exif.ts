@@ -328,9 +328,11 @@ export function getWebpMetadata(file: File) {
             webp.slice(offset + 8, offset + 8 + chunk_length)
           );
           for (let key in data) {
+            // @ts-ignore
             const value = data[key] as string;
             if (typeof value === "string") {
               const index = value.indexOf(":");
+              // @ts-ignore
               txt_chunks[value.slice(0, index)] = value.slice(index + 1);
             }
           }
@@ -347,11 +349,13 @@ export function getWebpMetadata(file: File) {
     u;
   });
 }
+// @ts-ignore
 function parseExifData(exifData) {
   // Check for the correct TIFF header (0x4949 for little-endian or 0x4D4D for big-endian)
   const isLittleEndian = String.fromCharCode(...exifData.slice(0, 2)) === "II";
 
   // Function to read 16-bit and 32-bit integers from binary data
+  // @ts-ignore
   function readInt(offset, isLittleEndian, length) {
     let arr = exifData.slice(offset, offset + length);
     if (length === 2) {
@@ -370,10 +374,12 @@ function parseExifData(exifData) {
   // Read the offset to the first IFD (Image File Directory)
   const ifdOffset = readInt(4, isLittleEndian, 4);
 
+  // @ts-ignore
   function parseIFD(offset) {
     const numEntries = readInt(offset, isLittleEndian, 2);
     const result = {};
 
+    // @ts-ignore
     for (let i = 0; i < numEntries; i++) {
       const entryOffset = offset + 2 + i * 12;
       const tag = readInt(entryOffset, isLittleEndian, 2);
@@ -386,10 +392,12 @@ function parseExifData(exifData) {
       if (type === 2) {
         // ASCII string
         value = new TextDecoder("utf-8").decode(
+          // @ts-ignore
           exifData.subarray(valueOffset, valueOffset + numValues - 1)
         );
       }
 
+      // @ts-ignore
       result[tag] = value;
     }
 
@@ -403,6 +411,7 @@ function parseExifData(exifData) {
 
 // Original functions left in for backwards compatibility
 export function getPngMetadata(file: File): Promise<Record<string, string>> {
+  // @ts-ignore
   return getFromPngFile(file)!;
 }
 

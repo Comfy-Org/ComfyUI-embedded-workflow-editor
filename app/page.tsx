@@ -33,6 +33,7 @@ export default function Home() {
       // editor.getAction("editor.action.formatDocument")!.run();
 
       // assume editing_workflow_json is latest
+      
       const workflow = tryMinifyJson(persistState.editing_workflow_json);
       const modifiedMetadata = { workflow };
       await saveCurrentFile(modifiedMetadata);
@@ -47,7 +48,9 @@ export default function Home() {
   return (
     <div className="flex flex-row gap-1 justify-center rounded-lg">
       <div className="flex flex-col gap-4 config bg-dark shadow-lg p-4 w-[40em] max-h-screen rounded-lg">
-        <h2 className="text-lg font-bold">ComfyUI Workflow Editor</h2>
+        <h2 className="text-lg font-bold">
+          ComfyUI Workflow Editor <i className="text-xs">in your browser</i>
+        </h2>
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
@@ -135,13 +138,14 @@ export default function Home() {
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
               }}
             >
-              Way-3. Choose Working Folder (will overwrite on save)
+              Way-3. Choose Working Folder (overwrite on save)
             </button>
             <i>* possibly choose /ComfyUI/output</i>
             {/* <div>* /ComfyUI/output</div> */}
           </div>
         </div>
-        Editable Workflows:
+        <br />
+        <label className="font-semibold">Editable Workflows</label>
         <fieldset>
           <ul className={clsx("flex flex-col gap-1")}>
             {!tasklist.length && <div>Nothing editable yet</div>}
@@ -298,8 +302,8 @@ export default function Home() {
   );
 
   async function saveCurrentFile(modifiedMetadata: { workflow: string }) {
-    const file = tasklist[snap.editing_index].file;
-    const filename = snap.editing_filename;
+    const file = tasklist[persistState.editing_index].file;
+    const filename = persistState.editing_filename;
     if (!file) return;
     const png = setToPngBuffer(await file.arrayBuffer(), modifiedMetadata);
 

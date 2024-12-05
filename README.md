@@ -1,6 +1,6 @@
 # ComfyUI embedded workflow editor
 
-In-place embedded workflow-exif editing experience for ComfyUI generated images. Edit png exif just in your browser
+In-place embedded workflow-exif editing experience for ComfyUI generated images. Edit png exif just in your browser.
 
 ![screenshot](docs/preview.png)
 

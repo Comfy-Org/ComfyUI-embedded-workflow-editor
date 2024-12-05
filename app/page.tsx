@@ -59,10 +59,29 @@ export default function Home() {
           <div className="gap-2 flex flex-col items-center">
             <input
               readOnly
-              className="input input-bordered input-sm w-full text-center"
+              className="input input-bordered border-dashed input-sm w-full text-center"
               placeholder="Way-1. Paste/Drop images here"
               onPaste={async (e) => {
                 const files = e.clipboardData.files;
+                if (!files.length) return;
+                const readedWorkflowInfos = await rangeFlow(0, files.length)
+                  .map((i) => files.item(i))
+                  .filter((e) => e?.name.match(".(png|flac|webp)$"))
+                  .filter()
+                  .map(async (e) => await readWorkflowInfo(e))
+                  .toArray();
+                setTasklist(readedWorkflowInfos);
+                chooseNthFileToEdit(readedWorkflowInfos, 0);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = "copy";
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const files = e.dataTransfer.files;
                 if (!files.length) return;
                 const readedWorkflowInfos = await rangeFlow(0, files.length)
                   .map((i) => files.item(i))
@@ -116,8 +135,9 @@ export default function Home() {
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
               }}
             >
-              Way-3. Choose Working Folder (overwrite on save)
+              Way-3. Choose Working Folder (will overwrite on save)
             </button>
+            <i>* possibly choose /ComfyUI/output</i>
             {/* <div>* /ComfyUI/output</div> */}
           </div>
         </div>
@@ -267,7 +287,10 @@ export default function Home() {
         />
       </div>
       <span id="forkongithub">
-        <a href="https://github.com/snomiao/ComfyUI-embeded-workflow-editor" target="_blank">
+        <a
+          href="https://github.com/snomiao/ComfyUI-embeded-workflow-editor"
+          target="_blank"
+        >
           Fork me on GitHub
         </a>
       </span>

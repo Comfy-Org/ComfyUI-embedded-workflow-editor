@@ -11,21 +11,19 @@ import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo, setToPngBuffer } from "./utils/exif";
 
-/** 
- @author (copyleft) @snomiao 2024
-*/
+/**
+ * @author snomiao <snomiao@gmail.com> 2024
+ */
 export default function Home() {
   const snap = useSnapshot(persistState);
-  // const uiSnap = useSnapshot(uiState);
-  const [workingDir, setWorkingFolder] =
-    useState<FileSystemDirectoryHandle | null>(null);
+  const [workingDir, setWorkingDir] = useState<FileSystemDirectoryHandle>();
   useSWR(
     "/filelist",
     async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
-  const [editor, setEditor] = useState<any | null>(null);
+  const [editor, setEditor] = useState<any>();
 
   useEffect(() => {
     if (!monaco || !editor) return;
@@ -125,7 +123,7 @@ export default function Home() {
                   .filter((e) => e.workflowJson)
                   .toArray();
                 setTasklist(readedWorkflowInfos);
-                setWorkingFolder(null);
+                setWorkingDir(undefined);
                 chooseNthFileToEdit(readedWorkflowInfos, 0);
               }}
             >
@@ -138,7 +136,7 @@ export default function Home() {
                 const workingDir =
                   // @ts-expect-error new api
                   (await window.showDirectoryPicker()) as unknown as FileSystemDirectoryHandle;
-                setWorkingFolder(workingDir);
+                setWorkingDir(workingDir);
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
               }}
             >
@@ -272,27 +270,18 @@ export default function Home() {
           language="json"
           value={snap.editing_workflow_json ?? "{}"}
           onChange={(e) => {
-            void (persistState.editing_workflow_json = e ?? "");
+            const content = e ?? "";
+            persistState.editing_workflow_json = content;
             if (
               snap.autosave &&
-              snap.editing_workflow_json !==
-                tasklist[snap.editing_index].workflowJson
+              content !== tasklist[snap.editing_index].workflowJson
             ) {
+              saveCurrentFile({ workflow: tryMinifyJson(content) });
             }
-            // persistState.editing_workflow_json !== tasklist[snap.editing_index] && persistState.autosave && (async () => {
-            //   const filename = snap.editing_filename
-            //   const modifiedMetadata = { workflow: tryMinifyJson(snap.editing_workflow_json) };
           }}
           className="w-full h-full"
           onValidate={(e) => console.log(e)}
-          options={
-            {
-              // minimap
-            }
-          }
-          onMount={(editor) => {
-            setEditor(editor);
-          }}
+          onMount={(editor) => setEditor(editor)}
         />
       </div>
       <span id="forkongithub">

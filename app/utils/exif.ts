@@ -429,10 +429,12 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
       : e.type === "audio/flac" || e.type === "audio/x-flac"
       ? await getFromFlacFile(e)
       : null;
+  const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {
     name: e.name,
     workflowJson,
+    previewUrl,
     file: e,
     lastModified: e.lastModified,
   };

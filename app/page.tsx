@@ -148,8 +148,8 @@ export default function Home() {
         </div>
         <br />
         <label className="font-semibold">Editable Workflows</label>
-        <fieldset>
-          <ul className={clsx("flex flex-col gap-1")}>
+        <ul className={clsx("flex flex-col gap-1 overflow-auto")}>
+          <fieldset>
             {!tasklist.length && <div>Nothing editable yet</div>}
             {tasklist.map((e, i) => {
               const id = md5(e.name);
@@ -170,6 +170,10 @@ export default function Home() {
                     }}
                     value={e.name}
                   />{" "}
+                  <img
+                    src={e.previewUrl}
+                    className="w-[2em] h-[2em] inline object-cover"
+                  />{" "}
                   <label htmlFor={id}>
                     {e.name} -{" "}
                     <TimeAgo
@@ -181,8 +185,8 @@ export default function Home() {
                 </li>
               );
             })}
-          </ul>
-        </fieldset>
+          </fieldset>
+        </ul>
         {/* <div>
           <label className="font-semibold" htmlFor="editingImage">
             Choose Editing Image
@@ -226,6 +230,12 @@ export default function Home() {
         })}
       >
         <div className="flex flex-row items-center gap-4 p-2">
+          <div className="flex flex-col gap-1"></div>
+          <img
+            src={tasklist[snap.editing_index]?.previewUrl ?? ""}
+            className="h-[3em] w-[3em] inline object-contain rounded"
+            alt="Preview Editing Image"
+          />
           <div>
             <input
               className="input input-bordered input-sm"

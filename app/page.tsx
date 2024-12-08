@@ -16,6 +16,7 @@ import { readWorkflowInfo, setToPngBuffer } from "./utils/exif";
  */
 export default function Home() {
   const snap = useSnapshot(persistState);
+  const snapSync = useSnapshot(persistState, { sync: true });
   const [workingDir, setWorkingDir] = useState<FileSystemDirectoryHandle>();
   useSWR(
     "/filelist",
@@ -56,7 +57,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
-              Input images by (only supports *.png now):
+              Import images by (only supports edit *.png now):
             </label>
             &nbsp;
             <span>{workingDir ? "✅ Linked" : ""}</span>
@@ -128,6 +129,8 @@ export default function Home() {
               }}
             >
               Way-2. Upload Files (download on save)
+              <br />
+              <i className="text-xs">(also accept URLs in windows)</i>
             </motion.button>
             <button
               name="open-output-folder"
@@ -157,7 +160,7 @@ export default function Home() {
               return (
                 <li
                   key={id}
-                  className={clsx({
+                  className={clsx("p-1", {
                     "bg-slate-200": editingTask?.name === e.name,
                   })}
                 >
@@ -165,23 +168,23 @@ export default function Home() {
                     id={id}
                     type="radio"
                     name="editing_workflow_json"
-                    onClick={async () => {
-                      chooseNthFileToEdit(tasklist, i);
-                    }}
+                    onClick={() => void chooseNthFileToEdit(tasklist, i)}
                     value={e.name}
                   />{" "}
                   <img
                     src={e.previewUrl}
                     className="w-[2em] h-[2em] inline object-cover"
                   />{" "}
-                  <label htmlFor={id}>
-                    {e.name} -{" "}
-                    <TimeAgo
-                      datetime={new Date(e.lastModified)}
-                      title={new Date(e.lastModified).toISOString()}
-                    />
-                  </label>
-                  {snap.editing_index === i ? " Editing 🧪" : ""}
+                  <div className="inline-flex flex-col">
+                    <label htmlFor={id}>{e.name}</label>
+                    <div className="italic text-xs text-slate-500">
+                      <TimeAgo
+                        datetime={new Date(e.lastModified)}
+                        title={new Date(e.lastModified).toISOString()}
+                      />
+                      {snap.editing_index === i ? " - Editing 🧪" : ""}
+                    </div>
+                  </div>
                 </li>
               );
             })}
@@ -216,7 +219,7 @@ export default function Home() {
           </label>
           <input
             name="comfyapi"
-            value={snap.comfyapi}
+            value={snapSync.comfyapi}
             onChange={(e) => void (persistState.comfyapi = e.target.value)}
           />
           <div>
@@ -238,8 +241,10 @@ export default function Home() {
           />
           <div>
             <input
+              type="text"
+              name="editing_filename"
               className="input input-bordered input-sm"
-              value={snap.editing_filename}
+              value={snapSync.editing_filename}
               onChange={(e) =>
                 void (persistState.editing_filename = e.target.value)
               }
@@ -261,7 +266,13 @@ export default function Home() {
               }}
             >
               Save exif into image{" "}
-              <span>{workingDir ? "(overwrite)" : "(download)"}</span>
+              <span>
+                {!workingDir
+                  ? "(download)"
+                  : snap.editing_filename === tasklist[snap.editing_index]?.name
+                  ? "(overwrite)"
+                  : "(save as)"}
+              </span>
             </button>
           </div>
 
@@ -289,7 +300,7 @@ export default function Home() {
               saveCurrentFile({ workflow: tryMinifyJson(content) });
             }
           }}
-          className="w-full h-full"
+          className="w-[calc(100%-1px)] h-full"
           onValidate={(e) => console.log(e)}
           onMount={(editor) => setEditor(editor)}
         />

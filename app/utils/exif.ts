@@ -1,5 +1,3 @@
-import { u } from "motion/react-client";
-
 // @ts-strict-ignore
 export function getFromPngBuffer(buffer: ArrayBuffer) {
   // Get the PNG data as a Uint8Array
@@ -168,6 +166,11 @@ export function setToPngBuffer(
   }
 
   // Concatenate the new PNG chunks
+  const newPngData = mergeUint8Chunks(newPngChunks);
+  return newPngData;
+}
+
+function mergeUint8Chunks(newPngChunks: Uint8Array[]) {
   const retLength = newPngChunks.reduce((r, e) => r + e.length, 0);
   const newPngData = new Uint8Array(retLength);
   let len = 0;
@@ -175,7 +178,6 @@ export function setToPngBuffer(
     newPngData.set(e, len);
     len += e.length;
   });
-
   return newPngData;
 }
 
@@ -185,34 +187,9 @@ export function removeExt(f: string) {
   if (p === -1) return f;
   return f.substring(0, p);
 }
-export function getFromPngFile(file: File) {
-  return new Promise<Record<string, string> | null>((r) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      r(getFromPngBuffer(event.target!.result as ArrayBuffer));
-    };
-
-    reader.readAsArrayBuffer(file);
-  });
+export async function getFromPngFile(file: File) {
+  return getFromPngBuffer(await file.arrayBuffer());
 }
-// export function setToPngFile(
-//   file: File,
-//   new_txt_chunks: Record<string, string>
-// ) {
-//   return new Promise<File>((r) => {
-//     const reader = new FileReader();
-//     reader.onload = (event) => {
-//       const newBuffer = setToPngBuffer(
-//         event.target!.result as ArrayBuffer,
-//         new_txt_chunks
-//       )!;
-//       r(new File([newBuffer], file.name, { type: file.type }));
-//     };
-
-//     reader.readAsArrayBuffer(file);
-//   });
-// }
-
 // @ts-strict-ignore
 export function getFromFlacBuffer(buffer: ArrayBuffer): Record<string, string> {
   const dataView = new DataView(buffer);
@@ -246,15 +223,10 @@ export function getFromFlacBuffer(buffer: ArrayBuffer): Record<string, string> {
   return vorbisComment!;
 }
 
-export function getFromFlacFile(file: File): Promise<Record<string, string>> {
-  return new Promise((r) => {
-    const reader = new FileReader();
-    reader.onload = function (event) {
-      const arrayBuffer = event.target!.result as ArrayBuffer;
-      r(getFromFlacBuffer(arrayBuffer));
-    };
-    reader.readAsArrayBuffer(file);
-  });
+export async function getFromFlacFile(
+  file: File
+): Promise<Record<string, string>> {
+  return getFromFlacBuffer(await file.arrayBuffer());
 }
 
 // Function to parse the Vorbis Comment block
@@ -291,72 +263,125 @@ function getString(dataView: DataView, offset: number, length: number): string {
   return string;
 }
 
-export function getWebpMetadata(file: File) {
-  return new Promise<Record<string, string>>((r) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const webp = new Uint8Array(event.target!.result as ArrayBuffer);
-      const dataView = new DataView(webp.buffer);
+export async function getWebpMetadata(
+  file: File
+): Promise<Record<string, string>> {
+  const webp = new Uint8Array(await file.arrayBuffer());
+  const dataView = new DataView(webp.buffer);
 
-      // Check that the WEBP signature is present
+  // Check that the WEBP signature is present
+  if (
+    dataView.getUint32(0) !== 0x52494646 ||
+    dataView.getUint32(8) !== 0x57454250
+  ) {
+    console.error("Not a valid WEBP file");
+    return {};
+  }
+
+  // Start searching for chunks after the WEBP signature
+  let offset = 12;
+  const txt_chunks = {};
+  // Loop through the chunks in the WEBP file
+  while (offset < webp.length) {
+    const chunk_length = dataView.getUint32(offset + 4, true);
+    const chunk_type = String.fromCharCode(...webp.slice(offset, offset + 4));
+    if (chunk_type === "EXIF") {
       if (
-        dataView.getUint32(0) !== 0x52494646 ||
-        dataView.getUint32(8) !== 0x57454250
+        String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ==
+        "Exif\0\0"
       ) {
-        console.error("Not a valid WEBP file");
-        r({});
-        return;
+        offset += 6;
       }
-
-      // Start searching for chunks after the WEBP signature
-      let offset = 12;
-      let txt_chunks = {};
-      // Loop through the chunks in the WEBP file
-      while (offset < webp.length) {
-        const chunk_length = dataView.getUint32(offset + 4, true);
-        const chunk_type = String.fromCharCode(
-          ...webp.slice(offset, offset + 4)
-        );
-        if (chunk_type === "EXIF") {
-          if (
-            String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ==
-            "Exif\0\0"
-          ) {
-            offset += 6;
-          }
-          let data = parseExifData(
-            webp.slice(offset + 8, offset + 8 + chunk_length)
-          );
-          for (let key in data) {
-            // @ts-ignore
-            const value = data[key] as string;
-            if (typeof value === "string") {
-              const index = value.indexOf(":");
-              // @ts-ignore
-              txt_chunks[value.slice(0, index)] = value.slice(index + 1);
-            }
-          }
-          break;
+      let data = decodeWebpExifData(
+        webp.slice(offset + 8, offset + 8 + chunk_length)
+      );
+      for (let key in data) {
+        // @ts-ignore
+        const value = data[key] as string;
+        if (typeof value === "string") {
+          const index = value.indexOf(":");
+          // @ts-ignore
+          txt_chunks[value.slice(0, index)] = value.slice(index + 1);
         }
-
-        offset += 8 + chunk_length;
       }
+      break;
+    }
 
-      r(txt_chunks);
-    };
-
-    reader.readAsArrayBuffer(file);
-    u;
-  });
+    offset += 8 + chunk_length;
+  }
+  return txt_chunks;
 }
-// @ts-ignore
-function parseExifData(exifData) {
+/**
+ * - [WebP の構造を追ってみる 🏗 \| Basicinc Enjoy Hacking!]( https://tech.basicinc.jp/articles/177 )
+ * WIP
+ */
+export async function setWebpMetadata_WIP(
+  file: File,
+  new_txt_chunks: Record<string, string>
+): Promise<File> {
+  const webp = new Uint8Array(await file.arrayBuffer());
+  const newChunks: Uint8Array[] = [];
+  const dataView = new DataView(webp.buffer);
+
+  // Check that the WEBP signature is present
+  if (
+    dataView.getUint32(0) !== 0x52494646 ||
+    dataView.getUint32(8) !== 0x57454250
+  ) {
+    throw new Error("Not a valid WEBP file");
+  }
+  // copy the chunks before the EXIF chunk
+  newChunks.push(webp.slice(0, 12));
+
+  // Start searching for chunks after the WEBP signature
+  let offset = 12;
+  const txt_chunks: Record<string, string> = {};
+  // Loop through the chunks in the WEBP file
+  while (offset < webp.length) {
+    const chunk_type = String.fromCharCode(...webp.slice(offset, offset + 4));
+    const chunk_length = dataView.getUint32(offset + 4, true);
+    if (chunk_type === "EXIF") {
+      if (
+        String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ==
+        "Exif\0\0"
+      ) {
+        offset += 6;
+      }
+      const data = decodeWebpExifData(
+        webp.slice(offset + 8, offset + 8 + chunk_length)
+      );
+      for (let key in data) {
+        // @ts-ignore
+        const value = data[key] as string;
+        if (typeof value === "string") {
+          const index = value.indexOf(":");
+          // @ts-ignore
+          txt_chunks[value.slice(0, index)] = value.slice(index + 1);
+        }
+      }
+      // copy the EXIF chunk
+
+      // newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
+      // copy from chunk end to file end
+      // newChunks.push(webp.slice(offset + 8 + chunk_length));
+      // break;
+    } else {
+      // copy the chunk
+      newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
+    }
+
+    offset += 8 + chunk_length;
+  }
+  const mergedChunks = mergeUint8Chunks(newChunks);
+  return new File([mergedChunks], file.name, { type: file.type });
+}
+
+function decodeWebpExifData(exifData: Uint8Array): Record<string, string> {
   // Check for the correct TIFF header (0x4949 for little-endian or 0x4D4D for big-endian)
   const isLittleEndian = String.fromCharCode(...exifData.slice(0, 2)) === "II";
 
   // Function to read 16-bit and 32-bit integers from binary data
-  // @ts-ignore
-  function readInt(offset, isLittleEndian, length) {
+  function readInt(offset: number , isLittleEndian: boolean , length: number) {
     let arr = exifData.slice(offset, offset + length);
     if (length === 2) {
       return new DataView(arr.buffer, arr.byteOffset, arr.byteLength).getUint16(
@@ -369,17 +394,16 @@ function parseExifData(exifData) {
         isLittleEndian
       );
     }
+    throw new Error("Invalid length for integer");
   }
 
   // Read the offset to the first IFD (Image File Directory)
   const ifdOffset = readInt(4, isLittleEndian, 4);
 
-  // @ts-ignore
-  function parseIFD(offset) {
+  function parseIFD(offset:number) {
     const numEntries = readInt(offset, isLittleEndian, 2);
-    const result = {};
+    const result: Record<string, string> = {};
 
-    // @ts-ignore
     for (let i = 0; i < numEntries; i++) {
       const entryOffset = offset + 2 + i * 12;
       const tag = readInt(entryOffset, isLittleEndian, 2);
@@ -392,12 +416,12 @@ function parseExifData(exifData) {
       if (type === 2) {
         // ASCII string
         value = new TextDecoder("utf-8").decode(
-          // @ts-ignore
           exifData.subarray(valueOffset, valueOffset + numValues - 1)
         );
+      }else {
+        throw new Error("Unsupported data type");
       }
 
-      // @ts-ignore
       result[tag] = value;
     }
 
@@ -408,6 +432,43 @@ function parseExifData(exifData) {
   const ifdData = parseIFD(ifdOffset);
   return ifdData;
 }
+
+// function encodeWebpExifData(
+//   exifData: Record<string, string>
+// ): Uint8Array {
+//   // Create a new DataView to write the EXIF data
+//   const dataView = new DataView(new ArrayBuffer(1024));
+//   const encoder = new TextEncoder();
+
+//   let offset = 0;
+//   // Write the TIFF header
+//   dataView.setUint16(offset, 0x4949, true); // Little-endian
+//   dataView.setUint16(offset + 2, 42, true); // Version
+//   offset += 4;
+//   // Write the IFD (Image File Directory)
+//   dataView.setUint16(offset, 1, true); // Number of entries
+//   offset += 2;
+//   // Write the EXIF tags
+//   for (const [key, value] of Object.entries(exifData)) {
+//     //
+//       const tag = parseInt(key);
+//       const type = 2; // ASCII string
+//       const numValues = value.length + 1; // +1 for the null terminator
+//       const valueOffset = offset + 12 + 12 * Object.keys(exifData).length;
+//       dataView.setUint16(offset, tag, true);
+//       dataView.setUint16(offset + 2, type, true);
+//       dataView.setUint32(offset + 4, numValues, true);
+//       dataView.setUint32(offset + 8, valueOffset, true);
+//       offset += 12;
+//       dataView.setUint8(valueOffset, ...encoder.encode(value));
+//       dataView.setUint8(valueOffset + numValues - 1, 0); // Null terminator
+//       // Write the EXIF data
+//       // ...
+//       // Write the IFD
+//       dataView.setUint16(offset, Object.keys(exifData).length, true);
+//       offset += 2;
+//   }
+// }
 
 // Original functions left in for backwards compatibility
 export function getPngMetadata(file: File): Promise<Record<string, string>> {

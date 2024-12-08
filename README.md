@@ -2,7 +2,7 @@
 
 In-place embedded workflow-exif editing experience for ComfyUI generated images. Edit png exif just in your browser.
 
-![screenshot](docs/preview.png)
+![alt text](docs/screenshot.png)
 
 ## Usage
 

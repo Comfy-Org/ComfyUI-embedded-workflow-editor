@@ -9,7 +9,11 @@ import useSWR from "swr";
 import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
-import { readWorkflowInfo, setToPngBuffer } from "./utils/exif";
+import {
+  readWorkflowInfo,
+  setPngMetadata,
+  setWebpMetadata_WIP
+} from "./utils/exif";
 
 /**
  * @author snomiao <snomiao@gmail.com> 2024
@@ -318,31 +322,37 @@ export default function Home() {
 
   async function saveCurrentFile(modifiedMetadata: { workflow: string }) {
     const file = tasklist[persistState.editing_index].file;
-    const filename = persistState.editing_filename;
-    if (!file) return;
-    const png = setToPngBuffer(await file.arrayBuffer(), modifiedMetadata);
+    const newFilename = persistState.editing_filename;
 
-    if (!workingDir) {
-      const f = new File([png], filename, {
-        type: file.type,
-      });
-      download(f);
+    if (!file) return;
+    const fileToSave = await (async function () {
+      if (file.type === "image/png") {
+        return await setPngMetadata(file, modifiedMetadata, newFilename);
+      } else if (file.type === "image/webp") {
+        return await setWebpMetadata_WIP(file, modifiedMetadata, newFilename);
+      } else {
+        const msg = "Not supported file type";
+        alert(msg);
+        throw new Error(msg);
+      }
+    })();
+
+    if (workingDir) {
+      await writeToWorkingDir(workingDir, fileToSave);
     } else {
-      // save to image (overwrite when we have workingDir permission)
-      await writeBack(workingDir, filename, png);
+      download(fileToSave);
     }
   }
 
-  async function writeBack(
+  async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    filename: string,
-    newBuffer: Uint8Array
+    file: File
   ) {
-    const h = await workingDir.getFileHandle(filename, {
+    const h = await workingDir.getFileHandle(file.name, {
       create: true,
     });
     const w = await h.createWritable();
-    await w.write(newBuffer);
+    await w.write(file);
     await w.close();
     await scanFilelist(workingDir);
   }

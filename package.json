@@ -12,6 +12,7 @@
     "@monaco-editor/react": "^4.6.0",
     "@types/md5": "^2.3.5",
     "clsx": "^2.1.1",
+    "crc32-from-arraybuffer": "^0.0.3",
     "md5": "^2.3.0",
     "motion": "^11.13.1",
     "next": "14.2.15",

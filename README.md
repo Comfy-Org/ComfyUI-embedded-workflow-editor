@@ -19,7 +19,16 @@ Open https://comfyui-embeded-workflow-editor.vercel.app/
 
 ## Contributing
 
-repo: https://github.com/snomiao/ComfyUI-embeded-workflow-editor
+Requirements: - [Bun — A fast all-in-one JavaScript runtime]( https://bun.sh/ )
+
+Run the following commands start your development:
+
+```
+git clone https://github.com/snomiao/ComfyUI-embeded-workflow-editor
+cd
+bun install
+bun dev
+```
 
 ## About
 

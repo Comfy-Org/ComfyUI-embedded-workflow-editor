@@ -157,7 +157,7 @@ export default function Home() {
         <label className="font-semibold">Editable Workflows</label>
         <ul className={clsx("flex flex-col gap-1 overflow-auto")}>
           <fieldset>
-            {!tasklist.length && <div>Nothing editable yet</div>}
+            {!tasklist.length && <div>Nothing editable yet, please import images with exif embedded</div>}
             {tasklist.map((e, i) => {
               const id = md5(e.name);
               const editingTask = tasklist[snap.editing_index];

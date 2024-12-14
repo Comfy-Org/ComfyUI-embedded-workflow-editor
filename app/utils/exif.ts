@@ -1,8 +1,6 @@
 import { crc32FromArrayBuffer } from "crc32-from-arraybuffer";
 
-async function getPngMetadata(file: File) {
-  const buffer = await file.arrayBuffer();
-
+export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
   const dataView = new DataView(pngData.buffer);
@@ -44,15 +42,17 @@ async function getPngMetadata(file: File) {
   }
   return txt_chunks;
 }
-export async function setPngMetadata(
+
+export async function setPngFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
   newFilename?: string
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
-  setMetadataToPngBuffer(buffer, new_txt_chunks);
-  return new File([buffer], newFilename ?? file.name, { type: file.type });
+  const newBuffer = setPngMetadata(buffer, new_txt_chunks);
+  return new File([newBuffer], newFilename ?? file.name, { type: file.type });
 }
+
 /*
 ref: png chunk struct:
 {
@@ -67,10 +67,10 @@ ref: png chunk struct:
 
 - [JavascriptでPNGファイルにtEXtチャンクを差し込むサンプルコード - ホンモノのエンジニアになりたい]( https://www.engineer-log.com/entry/2019/12/24/insert-textchunk )
 */
-export function setMetadataToPngBuffer(
+export function setPngMetadata(
   buffer: ArrayBuffer,
   new_txt_chunks: Record<string, string>
-) {
+): Uint8Array<ArrayBufferLike> {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
   const newPngChunks: Uint8Array[] = [];
@@ -148,12 +148,12 @@ export function setMetadataToPngBuffer(
               "warn: crc32 is not matched while content is not changed"
             );
           }
-          console.warn("keyword", keyword);
-          console.warn("content: ", contentJson);
-          console.warn("crc32: ", crc32);
-          console.warn("crc32(new): ", chunkCRC32);
-          console.warn("length: ", length);
-          console.warn("newLength: ", chunkLength);
+          // console.warn("keyword", keyword);
+          // console.warn("content: ", contentJson);
+          // console.warn("crc32: ", crc32);
+          // console.warn("crc32(new): ", chunkCRC32);
+          // console.warn("length: ", length);
+          // console.warn("newLength: ", chunkLength);
 
           const newPngChunk = new Uint8Array(8 + chunkLength + 4);
           const dataView = new DataView(newPngChunk.buffer);
@@ -181,7 +181,7 @@ export function setMetadataToPngBuffer(
   return newPngData;
 }
 
-function mergeUint8Chunks(newPngChunks: Uint8Array[]) {
+function mergeUint8Chunks(newPngChunks: Uint8Array[]): Uint8Array {
   const retLength = newPngChunks.reduce((r, e) => r + e.length, 0);
   const newPngData = new Uint8Array(retLength);
   let len = 0;
@@ -200,7 +200,7 @@ export function removeExt(f: string) {
 }
 
 // @ts-strict-ignore
-export function getFromFlacBuffer(buffer: ArrayBuffer): Record<string, string> {
+export function getFlacMetadata(buffer: ArrayBuffer): Record<string, string> {
   const dataView = new DataView(buffer);
 
   // Verify the FLAC signature
@@ -230,12 +230,6 @@ export function getFromFlacBuffer(buffer: ArrayBuffer): Record<string, string> {
   }
 
   return vorbisComment!;
-}
-
-export async function getFlacMetadata(
-  file: File
-): Promise<Record<string, string>> {
-  return getFromFlacBuffer(await file.arrayBuffer());
 }
 
 // Function to parse the Vorbis Comment block
@@ -272,10 +266,8 @@ function getString(dataView: DataView, offset: number, length: number): string {
   return string;
 }
 
-export async function getWebpMetadata(
-  file: File
-): Promise<Record<string, string>> {
-  const webp = new Uint8Array(await file.arrayBuffer());
+export function getWebpMetadata(buffer: ArrayBuffer): Record<string, string> {
+  const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);
 
   // Check that the WEBP signature is present
@@ -321,16 +313,24 @@ export async function getWebpMetadata(
   return txt_chunks;
 }
 
-/**
- * - [WebP の構造を追ってみる 🏗 \| Basicinc Enjoy Hacking!]( https://tech.basicinc.jp/articles/177 )
- * WIP
- */
-export async function setWebpMetadata_WIP(
+export async function setWebpFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
   newFilename?: string
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
+  const newBuffer = setWebpMetadata_WIP(buffer, new_txt_chunks, newFilename);
+  return new File([newBuffer], newFilename ?? file.name);
+}
+/**
+ * - [WebP の構造を追ってみる 🏗 \| Basicinc Enjoy Hacking!]( https://tech.basicinc.jp/articles/177 )
+ * WIP
+ */
+export function setWebpMetadata_WIP(
+  buffer: ArrayBuffer,
+  new_txt_chunks: Record<string, string>,
+  newFilename?: string
+) {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
   const dataView = new DataView(webp.buffer);
@@ -371,6 +371,8 @@ export async function setWebpMetadata_WIP(
       }
       // copy the EXIF chunk
 
+      newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
+
       // newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
       // copy from chunk end to file end
       // newChunks.push(webp.slice(offset + 8 + chunk_length));
@@ -382,10 +384,7 @@ export async function setWebpMetadata_WIP(
 
     offset += 8 + chunk_length;
   }
-  const mergedChunks = mergeUint8Chunks(newChunks);
-  return new File([mergedChunks], newFilename ?? file.name, {
-    type: file.type,
-  });
+  return mergeUint8Chunks(newChunks);
 }
 
 function decodeWebpExifData(exifData: Uint8Array): Record<string, string> {
@@ -486,11 +485,11 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
   if (!(e instanceof File)) e = await e.getFile();
   const metadata =
     e.type === "image/webp"
-      ? await getWebpMetadata(e)
+      ? getWebpMetadata(await e.arrayBuffer())
       : e.type === "image/png"
-      ? await getPngMetadata(e)
+      ? getPngMetadata(await e.arrayBuffer())
       : e.type === "audio/flac" || e.type === "audio/x-flac"
-      ? await getFlacMetadata(e)
+      ? getFlacMetadata(await e.arrayBuffer())
       : null;
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;

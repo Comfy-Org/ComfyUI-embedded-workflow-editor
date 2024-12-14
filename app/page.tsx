@@ -10,9 +10,9 @@ import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import {
-  readWorkflowInfo,
-  setPngMetadata,
-  setWebpMetadata_WIP
+    readWorkflowInfo,
+    setPngFileMetadata,
+    setWebpMetadata_WIP
 } from "./utils/exif";
 
 /**
@@ -327,7 +327,7 @@ export default function Home() {
     if (!file) return;
     const fileToSave = await (async function () {
       if (file.type === "image/png") {
-        return await setPngMetadata(file, modifiedMetadata, newFilename);
+        return await setPngFileMetadata(file, modifiedMetadata, newFilename);
       } else if (file.type === "image/webp") {
         return await setWebpMetadata_WIP(file, modifiedMetadata, newFilename);
       } else {

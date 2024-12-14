@@ -10,9 +10,9 @@ import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import {
-    readWorkflowInfo,
-    setPngFileMetadata,
-    setWebpMetadata_WIP
+  readWorkflowInfo,
+  setPngMetadata,
+  setWebpMetadata_WIP,
 } from "./utils/exif";
 
 /**
@@ -157,7 +157,11 @@ export default function Home() {
         <label className="font-semibold">Editable Workflows</label>
         <ul className={clsx("flex flex-col gap-1 overflow-auto")}>
           <fieldset>
-            {!tasklist.length && <div>Nothing editable yet, please import images with exif embedded</div>}
+            {!tasklist.length && (
+              <div>
+                Nothing editable yet, please import images with exif embedded
+              </div>
+            )}
             {tasklist.map((e, i) => {
               const id = md5(e.name);
               const editingTask = tasklist[snap.editing_index];
@@ -322,21 +326,23 @@ export default function Home() {
 
   async function saveCurrentFile(modifiedMetadata: { workflow: string }) {
     const file = tasklist[persistState.editing_index].file;
-    const newFilename = persistState.editing_filename;
+    const filename = persistState.editing_filename || file.name;
 
     if (!file) return;
-    const fileToSave = await (async function () {
-      if (file.type === "image/png") {
-        return await setPngFileMetadata(file, modifiedMetadata, newFilename);
-      } else if (file.type === "image/webp") {
-        return await setWebpMetadata_WIP(file, modifiedMetadata, newFilename);
-      } else {
-        const msg = "Not supported file type";
-        alert(msg);
-        throw new Error(msg);
-      }
-    })();
+    const buffer = await file.arrayBuffer();
+    const handlers: { [key: string]: () => Uint8Array } = {
+      "image/png": () => setPngMetadata(buffer, modifiedMetadata),
+      "image/webp": () => setWebpMetadata_WIP(buffer, modifiedMetadata),
+    };
 
+    const newBuffer = handlers[file.type]?.();
+    if (!newBuffer) {
+      const msg = "Not supported file type";
+      alert(msg);
+      throw new Error(msg);
+    }
+
+    const fileToSave = new File([newBuffer], filename, { type: file.type });
     if (workingDir) {
       await writeToWorkingDir(workingDir, fileToSave);
     } else {
@@ -373,10 +379,10 @@ export default function Home() {
   }
 }
 
-function download(newFile: File) {
+function download(file: File) {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(newFile);
-  a.download = newFile.name;
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
   a.click();
 }
 

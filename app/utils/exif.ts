@@ -1,4 +1,5 @@
 import { crc32FromArrayBuffer } from "crc32-from-arraybuffer";
+import { concatUint8Arrays } from 'uint8array-extras';
 
 export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
   // Get the PNG data as a Uint8Array
@@ -177,18 +178,7 @@ export function setPngMetadata(
   }
 
   // Concatenate the new PNG chunks
-  const newPngData = mergeUint8Chunks(newPngChunks);
-  return newPngData;
-}
-
-function mergeUint8Chunks(newPngChunks: Uint8Array[]): Uint8Array {
-  const retLength = newPngChunks.reduce((r, e) => r + e.length, 0);
-  const newPngData = new Uint8Array(retLength);
-  let len = 0;
-  newPngChunks.forEach((e) => {
-    newPngData.set(e, len);
-    len += e.length;
-  });
+  const newPngData = concatUint8Arrays(newPngChunks);
   return newPngData;
 }
 
@@ -384,7 +374,7 @@ export function setWebpMetadata_WIP(
 
     offset += 8 + chunk_length;
   }
-  return mergeUint8Chunks(newChunks);
+  return concatUint8Arrays(newChunks);
 }
 
 function decodeWebpExifData(exifData: Uint8Array): Record<string, string> {

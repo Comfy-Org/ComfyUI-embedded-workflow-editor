@@ -6,13 +6,16 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
 
 ## Usage
 
-Open https://comfyui-embeded-workflow-editor.vercel.app/
+1. Open https://comfyui-embeded-workflow-editor.vercel.app/
+2. Upload your img (or mount your local directory)
+3. Edit
+4. Save!
 
 ## Roadmap
 
-- [ ] Support for more image formats (png, jpg, webp, etc)
-    - [x] png
-    - [x] webp
+- [x] Support for more image formats (png, jpg, webp, etc)
+    - [x] png read/write
+    - [x] webp read/write
     - [ ] jpg (seems not possible yet)
 - [x] Show preview img to ensure you are editing the right image (thumbnail)
 - [ ] Support for other exif tags ("prompt", ...)

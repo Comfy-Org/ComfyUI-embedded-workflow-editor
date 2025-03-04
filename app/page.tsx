@@ -61,7 +61,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
-              Import images by (only supports edit *.png now):
+              Import images by (only supports *.png,*.webp now):
             </label>
             &nbsp;
             <span>{workingDir ? "✅ Linked" : ""}</span>

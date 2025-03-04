@@ -2,13 +2,13 @@
 
 In-place embedded workflow-exif editing experience for ComfyUI generated images. Edit png exif just in your browser.
 
-![alt text](docs/screenshot.png)
+![screenshot](docs/screenshot.png)
 
 ## Usage
 
 1. Open https://comfyui-embeded-workflow-editor.vercel.app/
 2. Upload your img (or mount your local directory)
-3. Edit
+3. Edit as you want
 4. Save!
 
 ## Roadmap

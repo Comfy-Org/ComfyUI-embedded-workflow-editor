@@ -318,7 +318,7 @@ export async function setWebpFileMetadata(
  */
 export function setWebpMetadata(
   buffer: ArrayBuffer,
-  modifyRecords: Record<string, string>
+  modifyRecords: Record<string, string> // e.g. {workflow: string}
 ) {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
@@ -350,26 +350,28 @@ export function setWebpMetadata(
       }
       const chunkContent = webp.slice(offset + 8, offset + 8 + chunk_length);
       const data = decodeWebpExifData(chunkContent);
+      // chunkContent = 'workflow:{...}'
       const modifiedData = Object.fromEntries(
         Object.entries(data).map(([k, v]) => {
           const idx = v.indexOf(":");
           if (idx === -1) return [k, v];
           if (modifyRecords[v.slice(0, idx)]) {
+            // replace value
             const value =
-              v.slice(0, idx) + ":" + modifyRecords[v.slice(0, idx)];
+              `${v.slice(0, idx)}:${modifyRecords[v.slice(0, idx)]}`;
             delete modifyRecords[v.slice(0, idx)]; // used
             return [k, value];
           }
           return [k, v];
         })
       );
-      if(Object.entries(modifyRecords).length){
-        throw new Error("Unable to modify webp metadata", {cause: modifyRecords})
+      if (Object.entries(modifyRecords).length) {
+        throw new Error("Unable to modify webp metadata", {
+          cause: modifyRecords,
+        });
       }
       const newChunkContent = modifyWebpExifData(chunkContent, modifiedData);
-
       const newChunk_length = newChunkContent.length;
-
       for (let key in data) {
         const value = data[key] as string;
         if (typeof value === "string") {

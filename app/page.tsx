@@ -12,7 +12,7 @@ import { persistState } from "./persistState";
 import {
   readWorkflowInfo,
   setPngMetadata,
-  setWebpMetadata_WIP,
+  setWebpMetadata,
 } from "./utils/exif";
 
 /**
@@ -332,7 +332,7 @@ export default function Home() {
     const buffer = await file.arrayBuffer();
     const handlers: { [key: string]: () => Uint8Array } = {
       "image/png": () => setPngMetadata(buffer, modifiedMetadata),
-      "image/webp": () => setWebpMetadata_WIP(buffer, modifiedMetadata),
+      "image/webp": () => setWebpMetadata(buffer, modifiedMetadata),
     };
 
     const newBuffer = handlers[file.type]?.();

@@ -12,7 +12,7 @@ Open https://comfyui-embeded-workflow-editor.vercel.app/
 
 - [ ] Support for more image formats (png, jpg, webp, etc)
     - [x] png
-    - [ ] webp (coming soon)
+    - [x] webp
     - [ ] jpg (seems not possible yet)
 - [x] Show preview img to ensure you are editing the right image (thumbnail)
 - [ ] Support for other exif tags ("prompt", ...)

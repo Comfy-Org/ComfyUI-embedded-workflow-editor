@@ -1,5 +1,5 @@
 import { crc32FromArrayBuffer } from "crc32-from-arraybuffer";
-import { concatUint8Arrays } from 'uint8array-extras';
+import { concatUint8Arrays } from "uint8array-extras";
 
 export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
   // Get the PNG data as a Uint8Array
@@ -309,17 +309,16 @@ export async function setWebpFileMetadata(
   newFilename?: string
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
-  const newBuffer = setWebpMetadata_WIP(buffer, new_txt_chunks, newFilename);
+  const newBuffer = setWebpMetadata(buffer, new_txt_chunks);
   return new File([newBuffer], newFilename ?? file.name);
 }
 /**
  * - [WebP の構造を追ってみる 🏗 \| Basicinc Enjoy Hacking!]( https://tech.basicinc.jp/articles/177 )
  * WIP
  */
-export function setWebpMetadata_WIP(
+export function setWebpMetadata(
   buffer: ArrayBuffer,
-  new_txt_chunks: Record<string, string>,
-  newFilename?: string
+  modifyRecords: Record<string, string>
 ) {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
@@ -344,14 +343,33 @@ export function setWebpMetadata_WIP(
     const chunk_length = dataView.getUint32(offset + 4, true);
     if (chunk_type === "EXIF") {
       if (
-        String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ==
+        String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ===
         "Exif\0\0"
       ) {
         offset += 6;
       }
-      const data = decodeWebpExifData(
-        webp.slice(offset + 8, offset + 8 + chunk_length)
+      const chunkContent = webp.slice(offset + 8, offset + 8 + chunk_length);
+      const data = decodeWebpExifData(chunkContent);
+      const modifiedData = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => {
+          const idx = v.indexOf(":");
+          if (idx === -1) return [k, v];
+          if (modifyRecords[v.slice(0, idx)]) {
+            const value =
+              v.slice(0, idx) + ":" + modifyRecords[v.slice(0, idx)];
+            delete modifyRecords[v.slice(0, idx)]; // used
+            return [k, value];
+          }
+          return [k, v];
+        })
       );
+      if(Object.entries(modifyRecords).length){
+        throw new Error("Unable to modify webp metadata", {cause: modifyRecords})
+      }
+      const newChunkContent = modifyWebpExifData(chunkContent, modifiedData);
+
+      const newChunk_length = newChunkContent.length;
+
       for (let key in data) {
         const value = data[key] as string;
         if (typeof value === "string") {
@@ -359,14 +377,18 @@ export function setWebpMetadata_WIP(
           txt_chunks[value.slice(0, index)] = value.slice(index + 1);
         }
       }
-      // copy the EXIF chunk
+      // push new length
+      const newChunk_lengthArray = new Uint8Array(4);
+      new DataView(newChunk_lengthArray.buffer).setUint32(
+        0,
+        newChunk_length,
+        true
+      );
 
-      newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
-
-      // newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
-      // copy from chunk end to file end
-      // newChunks.push(webp.slice(offset + 8 + chunk_length));
-      // break;
+      // push modified content
+      newChunks.push(webp.slice(offset, offset + 4)); //type
+      newChunks.push(newChunk_lengthArray); //
+      newChunks.push(newChunkContent);
     } else {
       // copy the chunk
       newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
@@ -434,43 +456,119 @@ function decodeWebpExifData(exifData: Uint8Array): Record<string, string> {
   return ifdData;
 }
 
-// function encodeWebpExifData(
-//   exifData: Record<string, string>
-// ): Uint8Array {
-//   // Create a new DataView to write the EXIF data
-//   const dataView = new DataView(new ArrayBuffer(1024));
-//   const encoder = new TextEncoder();
+function copyUint8Array(src: Uint8Array): Uint8Array {
+  // copyUint8Array
+  const dst = new ArrayBuffer(src.byteLength);
+  new Uint8Array(dst).set(new Uint8Array(src));
+  return new Uint8Array(dst);
+}
+function modifyWebpExifData(
+  exifData: Uint8Array,
+  modifyExifData: Record<string, string>
+): Uint8Array {
+  let newExifData: Uint8Array = copyUint8Array(exifData);
 
-//   let offset = 0;
-//   // Write the TIFF header
-//   dataView.setUint16(offset, 0x4949, true); // Little-endian
-//   dataView.setUint16(offset + 2, 42, true); // Version
-//   offset += 4;
-//   // Write the IFD (Image File Directory)
-//   dataView.setUint16(offset, 1, true); // Number of entries
-//   offset += 2;
-//   // Write the EXIF tags
-//   for (const [key, value] of Object.entries(exifData)) {
-//     //
-//       const tag = parseInt(key);
-//       const type = 2; // ASCII string
-//       const numValues = value.length + 1; // +1 for the null terminator
-//       const valueOffset = offset + 12 + 12 * Object.keys(exifData).length;
-//       dataView.setUint16(offset, tag, true);
-//       dataView.setUint16(offset + 2, type, true);
-//       dataView.setUint32(offset + 4, numValues, true);
-//       dataView.setUint32(offset + 8, valueOffset, true);
-//       offset += 12;
-//       dataView.setUint8(valueOffset, ...encoder.encode(value));
-//       dataView.setUint8(valueOffset + numValues - 1, 0); // Null terminator
-//       // Write the EXIF data
-//       // ...
-//       // Write the IFD
-//       dataView.setUint16(offset, Object.keys(exifData).length, true);
-//       offset += 2;
-//   }
-// }
+  // Check for the correct TIFF header (0x4949 for little-endian or 0x4D4D for big-endian)
+  const isLittleEndian = String.fromCharCode(...exifData.slice(0, 2)) === "II";
 
+  // Function to read 16-bit and 32-bit integers from binary data
+  function readInt(offset: number, length: number) {
+    const arr = exifData.slice(offset, offset + length);
+    const view = new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+    if (length === 2) {
+      return view.getUint16(0, isLittleEndian);
+    } else if (length === 4) {
+      return view.getUint32(0, isLittleEndian);
+    }
+    throw new Error("Invalid length for integer");
+  }
+
+  // Function to read 16-bit and 32-bit integers from binary data
+  function writeInt(offset: number, value: number, length: number) {
+    const arr = newExifData.subarray(offset, offset + length); // subarray is writable, compared with slice
+    const view = new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+    if (length === 2) {
+      return view.setUint16(0, value, isLittleEndian);
+    } else if (length === 4) {
+      return new DataView(arr.buffer, arr.byteOffset, arr.byteLength).setUint32(
+        0,
+        value,
+        isLittleEndian
+      );
+    }
+    throw new Error("Invalid length for integer");
+  }
+
+  // Read the offset to the first IFD (Image File Directory)
+  const ifdOffset = readInt(4, 4);
+
+  function parseIFD(offset: number) {
+    const numEntries = readInt(offset, 2);
+    const result: Record<string, string> = {};
+    let splicedOffset = 0;
+    for (let i = 0; i < numEntries; i++) {
+      const entryOffset = offset + 2 + i * 12;
+      const tag = readInt(entryOffset, 2);
+      const type = readInt(entryOffset + 2, 2);
+      const numValues = readInt(entryOffset + 4, 4);
+      const valueOffset = readInt(entryOffset + 8, 4);
+
+      // Read the value(s) based on the data type
+      const TYPE_ASCII_string = 2;
+      const value = (function getValue() {
+        if (type === TYPE_ASCII_string) {
+          return new TextDecoder("utf-8").decode(
+            exifData.subarray(valueOffset, valueOffset + numValues)
+          );
+        } else {
+          throw new Error("Unsupported data type");
+        }
+      })();
+      const newValue = modifyExifData[tag] ?? value;
+      const newValueEncoded = new TextEncoder().encode(newValue + "\0");
+      const newNumValues = numValues + (newValueEncoded.length - numValues);
+      writeInt(entryOffset + 4, newNumValues, 4);
+      const lengthDiff = newValueEncoded.byteLength - numValues;
+
+      newExifData = uint8ArrayToSpliced(
+        newExifData,
+        splicedOffset + valueOffset,
+        numValues,
+        newValueEncoded
+      );
+
+      splicedOffset += lengthDiff;
+      // const newNumValues = numValues + ((newValueEncoded.length)-(numValues-1))
+
+      result[tag] = value;
+    }
+
+    return result;
+  }
+
+  // Parse the first IFD
+  const ifdData = parseIFD(ifdOffset);
+
+  return newExifData;
+  // return ifdData;
+}
+// [].splice()
+
+export function uint8ArrayToSpliced(
+  target: Uint8Array,
+  offset: number,
+  deleteLength: number,
+  replaceValue: Uint8Array
+): Uint8Array {
+  const deleted = target.slice(offset, offset + deleteLength);
+
+  return concatUint8Arrays([
+    target.slice(0, offset),
+    // target.slice(offset, offset+deleteLength), // deleted
+    replaceValue, // replaced content
+    target.slice(offset + deleteLength, Infinity), // slice from after
+  ]);
+}
 export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
   if (!(e instanceof File)) e = await e.getFile();
   const metadata =

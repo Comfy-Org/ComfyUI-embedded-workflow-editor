@@ -36,6 +36,9 @@ export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
         offset + 8 + length
       );
       const contentJson = new TextDecoder("utf-8").decode(contentArraySegment);
+
+      if (txt_chunks[keyword])
+        console.warn(`Duplicated keyword ${keyword} has been overwritten`);
       txt_chunks[keyword] = contentJson;
     }
 
@@ -71,7 +74,7 @@ ref: png chunk struct:
 export function setPngMetadata(
   buffer: ArrayBuffer,
   new_txt_chunks: Record<string, string>
-): Uint8Array<ArrayBufferLike> {
+): Uint8Array {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
   const newPngChunks: Uint8Array[] = [];
@@ -96,9 +99,7 @@ export function setPngMetadata(
     if (type === "tEXt" || type == "comf" || type === "iTXt") {
       // Get the keyword
       let keyword_end = offset + 8;
-      while (pngData[keyword_end] !== 0) {
-        keyword_end++;
-      }
+      while (pngData[keyword_end] !== 0) keyword_end++;
       const keyword = String.fromCharCode(
         ...pngData.slice(offset + 8, keyword_end)
       );
@@ -163,6 +164,7 @@ export function setPngMetadata(
           newPngChunk.set(encoded, 8);
           dataView.setUint32(8 + chunkLength, chunkCRC32);
           newPngChunks.push(newPngChunk);
+          delete new_txt_chunks[keyword]; //mark used
         }
       } else {
         // if this keyword is not in new_txt_chunks,
@@ -177,7 +179,28 @@ export function setPngMetadata(
     offset += 12 + length;
   }
 
-  // Concatenate the new PNG chunks
+  // If no EXIF section was found, add new metadata chunks
+  Object.entries(new_txt_chunks).map(([keyword, content]) => {
+    // console.log(`Adding exif section for ${keyword}`);
+    const encoded = new TextEncoder().encode(keyword + "\x00" + content);
+    const chunkLength = encoded.length;
+    const chunkType = new TextEncoder().encode("tEXt");
+
+    // Calculate crc32
+    const crcTarget = new Uint8Array(chunkType.length + encoded.length);
+    crcTarget.set(chunkType, 0);
+    crcTarget.set(encoded, chunkType.length);
+    const chunkCRC32 = crc32FromArrayBuffer(crcTarget);
+
+    const newPngChunk = new Uint8Array(8 + chunkLength + 4);
+    const dataView = new DataView(newPngChunk.buffer);
+    dataView.setUint32(0, chunkLength);
+    newPngChunk.set(chunkType, 4);
+    newPngChunk.set(encoded, 8);
+    dataView.setUint32(8 + chunkLength, chunkCRC32);
+    newPngChunks.push(newPngChunk);
+  });
+
   const newPngData = concatUint8Arrays(newPngChunks);
   return newPngData;
 }

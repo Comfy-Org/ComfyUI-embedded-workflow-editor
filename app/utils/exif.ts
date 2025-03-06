@@ -319,7 +319,7 @@ export async function setWebpFileMetadata(
 export function setWebpMetadata(
   buffer: ArrayBuffer,
   modifyRecords: Record<string, string> // e.g. {workflow: string}
-) {
+): Uint8Array {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
   const dataView = new DataView(webp.buffer);
@@ -331,74 +331,109 @@ export function setWebpMetadata(
   ) {
     throw new Error("Not a valid WEBP file");
   }
-  // copy the chunks before the EXIF chunk
+
+  // Copy the RIFF header and WEBP signature
   newChunks.push(webp.slice(0, 12));
 
   // Start searching for chunks after the WEBP signature
   let offset = 12;
-  const txt_chunks: Record<string, string> = {};
+  let exifChunkFound = false;
+
   // Loop through the chunks in the WEBP file
   while (offset < webp.length) {
     const chunk_type = String.fromCharCode(...webp.slice(offset, offset + 4));
     const chunk_length = dataView.getUint32(offset + 4, true);
+    // Ensure chunk_length is even as per WebP spec
+    const paddedLength = chunk_length + (chunk_length % 2);
+
     if (chunk_type === "EXIF") {
+      exifChunkFound = true;
+      let exifHeaderOffset = 0;
+
+      // Check for Exif\0\0 header
       if (
         String.fromCharCode(...webp.slice(offset + 8, offset + 8 + 6)) ===
         "Exif\0\0"
       ) {
-        offset += 6;
+        exifHeaderOffset = 6;
       }
-      const chunkContent = webp.slice(offset + 8, offset + 8 + chunk_length);
+
+      const chunkContent = webp.slice(
+        offset + 8 + exifHeaderOffset,
+        offset + 8 + chunk_length
+      );
       const data = decodeWebpExifData(chunkContent);
-      // chunkContent = 'workflow:{...}'
+
+      // Prepare data for modification
       const modifiedData = Object.fromEntries(
         Object.entries(data).map(([k, v]) => {
           const idx = v.indexOf(":");
           if (idx === -1) return [k, v];
           if (modifyRecords[v.slice(0, idx)]) {
-            // replace value
-            const value =
-              `${v.slice(0, idx)}:${modifyRecords[v.slice(0, idx)]}`;
-            delete modifyRecords[v.slice(0, idx)]; // used
+            // Replace value
+            const value = `${v.slice(0, idx)}:${
+              modifyRecords[v.slice(0, idx)]
+            }`;
+            delete modifyRecords[v.slice(0, idx)]; // Mark as used
             return [k, value];
           }
           return [k, v];
         })
       );
-      if (Object.entries(modifyRecords).length) {
-        throw new Error("Unable to modify webp metadata", {
-          cause: modifyRecords,
-        });
-      }
-      const newChunkContent = modifyWebpExifData(chunkContent, modifiedData);
-      const newChunk_length = newChunkContent.length;
-      for (let key in data) {
-        const value = data[key] as string;
-        if (typeof value === "string") {
-          const index = value.indexOf(":");
-          txt_chunks[value.slice(0, index)] = value.slice(index + 1);
-        }
-      }
-      // push new length
-      const newChunk_lengthArray = new Uint8Array(4);
-      new DataView(newChunk_lengthArray.buffer).setUint32(
-        0,
-        newChunk_length,
-        true
-      );
 
-      // push modified content
-      newChunks.push(webp.slice(offset, offset + 4)); //type
-      newChunks.push(newChunk_lengthArray); //
-      newChunks.push(newChunkContent);
+      // Check if we have unused modification records
+      if (Object.keys(modifyRecords).length > 0) {
+        console.warn(
+          "Some metadata fields could not be modified:",
+          modifyRecords
+        );
+      }
+
+      // Modify the EXIF data
+      const newChunkContent = modifyWebpExifData(chunkContent, modifiedData);
+
+      // Create the new chunk with proper header
+      const exifHeader = exifHeaderOffset
+        ? webp.slice(offset + 8, offset + 8 + exifHeaderOffset)
+        : new Uint8Array(0);
+      const fullChunkContent = concatUint8Arrays([exifHeader, newChunkContent]);
+
+      // Calculate new chunk length
+      const newChunkLength = fullChunkContent.length;
+
+      // Create length bytes (little-endian)
+      const lengthBytes = new Uint8Array(4);
+      new DataView(lengthBytes.buffer).setUint32(0, newChunkLength, true);
+
+      // Add the chunk type, length, and content
+      newChunks.push(webp.slice(offset, offset + 4)); // EXIF
+      newChunks.push(lengthBytes);
+      newChunks.push(fullChunkContent);
+
+      // Add padding byte if needed
+      if (newChunkLength % 2 !== 0) {
+        newChunks.push(new Uint8Array([0])); // Padding byte
+      }
     } else {
-      // copy the chunk
-      newChunks.push(webp.slice(offset, offset + 8 + chunk_length));
+      // Copy the chunk as is (including any padding)
+      newChunks.push(webp.slice(offset, offset + 8 + paddedLength));
     }
 
-    offset += 8 + chunk_length;
+    // Move to the next chunk (accounting for padding)
+    offset += 8 + paddedLength;
   }
-  return concatUint8Arrays(newChunks);
+
+  // If we didn't find an EXIF chunk but have modifications, we should add one
+  // This would require additional code to create a new EXIF chunk from scratch
+
+  // Concatenate all chunks
+  const newWebpData = concatUint8Arrays(newChunks);
+
+  // Update the RIFF size field
+  const riffSizeView = new DataView(newWebpData.buffer, 4, 4);
+  riffSizeView.setUint32(0, newWebpData.length - 8, true);
+
+  return newWebpData;
 }
 
 function decodeWebpExifData(exifData: Uint8Array): Record<string, string> {
@@ -485,20 +520,20 @@ function modifyWebpExifData(
     throw new Error("Invalid length for integer");
   }
 
-  // Function to read 16-bit and 32-bit integers from binary data
+  // Function to write 16-bit and 32-bit integers to binary data
   function writeInt(offset: number, value: number, length: number) {
-    const arr = newExifData.subarray(offset, offset + length); // subarray is writable, compared with slice
-    const view = new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+    const view = new DataView(
+      newExifData.buffer,
+      newExifData.byteOffset + offset,
+      length
+    );
     if (length === 2) {
-      return view.setUint16(0, value, isLittleEndian);
+      view.setUint16(0, value, isLittleEndian);
     } else if (length === 4) {
-      return new DataView(arr.buffer, arr.byteOffset, arr.byteLength).setUint32(
-        0,
-        value,
-        isLittleEndian
-      );
+      view.setUint32(0, value, isLittleEndian);
+    } else {
+      throw new Error("Invalid length for integer");
     }
-    throw new Error("Invalid length for integer");
   }
 
   // Read the offset to the first IFD (Image File Directory)
@@ -508,6 +543,7 @@ function modifyWebpExifData(
     const numEntries = readInt(offset, 2);
     const result: Record<string, string> = {};
     let splicedOffset = 0;
+
     for (let i = 0; i < numEntries; i++) {
       const entryOffset = offset + 2 + i * 12;
       const tag = readInt(entryOffset, 2);
@@ -517,42 +553,52 @@ function modifyWebpExifData(
 
       // Read the value(s) based on the data type
       const TYPE_ASCII_string = 2;
-      const value = (function getValue() {
-        if (type === TYPE_ASCII_string) {
-          return new TextDecoder("utf-8").decode(
-            exifData.subarray(valueOffset, valueOffset + numValues)
+      if (type === TYPE_ASCII_string) {
+        const value = new TextDecoder("utf-8").decode(
+          exifData.subarray(valueOffset, valueOffset + numValues)
+        );
+
+        // Check if we need to modify this value
+        const newValue = modifyExifData[tag] ?? value;
+
+        // Only modify if the value has changed
+        if (newValue !== value) {
+          // Add null terminator if needed
+          const newValueWithNull = newValue.endsWith("\0")
+            ? newValue
+            : newValue + "\0";
+          const newValueEncoded = new TextEncoder().encode(newValueWithNull);
+          const newNumValues = newValueEncoded.length;
+
+          // Update the number of values in the entry
+          writeInt(entryOffset + 4, newNumValues, 4);
+
+          // Calculate how much the data size has changed
+          const lengthDiff = newValueEncoded.byteLength - numValues;
+
+          // Replace the old value with the new one
+          newExifData = uint8ArrayToSpliced(
+            newExifData,
+            splicedOffset + valueOffset,
+            numValues,
+            newValueEncoded
           );
-        } else {
-          throw new Error("Unsupported data type");
+
+          // Update the offset for future splices
+          splicedOffset += lengthDiff;
         }
-      })();
-      const newValue = modifyExifData[tag] ?? value;
-      const newValueEncoded = new TextEncoder().encode(newValue + "\0");
-      const newNumValues = numValues + (newValueEncoded.length - numValues);
-      writeInt(entryOffset + 4, newNumValues, 4);
-      const lengthDiff = newValueEncoded.byteLength - numValues;
 
-      newExifData = uint8ArrayToSpliced(
-        newExifData,
-        splicedOffset + valueOffset,
-        numValues,
-        newValueEncoded
-      );
-
-      splicedOffset += lengthDiff;
-      // const newNumValues = numValues + ((newValueEncoded.length)-(numValues-1))
-
-      result[tag] = value;
+        result[tag] = value;
+      }
     }
 
     return result;
   }
 
   // Parse the first IFD
-  const ifdData = parseIFD(ifdOffset);
+  parseIFD(ifdOffset);
 
   return newExifData;
-  // return ifdData;
 }
 // [].splice()
 

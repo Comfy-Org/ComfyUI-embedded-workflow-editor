@@ -4,7 +4,8 @@ import clsx from "clsx";
 import md5 from "md5";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { rangeFlow, sf } from "sflow";
+import toast, { Toaster } from "react-hot-toast";
+import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
@@ -14,7 +15,6 @@ import {
   setPngMetadata,
   setWebpMetadata,
 } from "./utils/exif";
-
 /**
  * @author snomiao <snomiao@gmail.com> 2024
  */
@@ -51,9 +51,43 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
+  const gotFiles = async (input: File[] | FileList) => {
+    const files = input instanceof FileList ? fileListToArray(input) : input;
+    if (!files.length) return;
+    const readedWorkflowInfos = await sflow(files)
+      .filter((e) => {
+        if (e.name.match(".(png|flac|webp)$")) return true;
+        toast.error("Not Supported format discarded: " + e.name);
+        return null;
+      })
+      .map(
+        async (e) =>
+          await readWorkflowInfo(e).catch((err) => {
+            toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
+            return null;
+          })
+      )
+      .filter() // filter empty
+      .toArray();
+    setWorkingDir(undefined);
+    setTasklist(readedWorkflowInfos);
+    chooseNthFileToEdit(readedWorkflowInfos, 0);
+  };
   // when trying to enqueue, try ensure the output with same prefix with the input file
   return (
-    <div className="flex flex-row gap-1 justify-center rounded-lg">
+    <div
+      className="flex flex-row gap-1 justify-center rounded-lg"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await gotFiles(e.dataTransfer.files);
+      }}
+    >
       <div className="flex flex-col gap-4 config bg-dark shadow-lg p-4 w-[40em] max-h-screen rounded-lg">
         <h2 className="text-lg font-bold">
           ComfyUI Workflow Editor <i className="text-xs">in your browser</i>
@@ -71,40 +105,10 @@ export default function Home() {
               readOnly
               className="input input-bordered border-dashed input-sm w-full text-center"
               placeholder="Way-1. Paste/Drop images here"
-              onPaste={async (e) => {
-                const files = e.clipboardData.files;
-                if (!files.length) return;
-                const readedWorkflowInfos = await rangeFlow(0, files.length)
-                  .map((i) => files.item(i))
-                  .filter((e) => e?.name.match(".(png|flac|webp)$"))
-                  .filter()
-                  .map(async (e) => await readWorkflowInfo(e))
-                  .toArray();
-                setTasklist(readedWorkflowInfos);
-                chooseNthFileToEdit(readedWorkflowInfos, 0);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.dataTransfer.dropEffect = "copy";
-              }}
-              onDrop={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const files = e.dataTransfer.files;
-                if (!files.length) return;
-                const readedWorkflowInfos = await rangeFlow(0, files.length)
-                  .map((i) => files.item(i))
-                  .filter((e) => e?.name.match(".(png|flac|webp)$"))
-                  .filter()
-                  .map(async (e) => await readWorkflowInfo(e))
-                  .toArray();
-                setTasklist(readedWorkflowInfos);
-                chooseNthFileToEdit(readedWorkflowInfos, 0);
-              }}
+              onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
             <motion.button
-              name="open-output-folder"
+              name="open-files"
               className="btn w-full"
               animate={{}}
               onClick={async () => {
@@ -115,29 +119,24 @@ export default function Home() {
                       {
                         description: "Images",
                         accept: {
-                          "image/*": [".png", ".gif", ".jpeg", ".jpg"],
+                          "image/*": [".png", ".webp"],
+                          "flac/*": [".flac"],
                         },
                       },
                     ],
                     excludeAcceptAllOption: true,
                     multiple: true,
                   });
-                const readedWorkflowInfos = await sf(filesHandles)
+                const files = await sf(filesHandles)
                   .map((e) => e.getFile())
-                  .map(async (e) => await readWorkflowInfo(e))
-                  .filter((e) => e.workflowJson)
                   .toArray();
-                setTasklist(readedWorkflowInfos);
-                setWorkingDir(undefined);
-                chooseNthFileToEdit(readedWorkflowInfos, 0);
+                return gotFiles(files);
               }}
             >
-              Way-2. Upload Files (download on save)
-              <br />
-              <i className="text-xs">(also accept URLs in windows)</i>
+              Way-2. Upload Files
             </motion.button>
             <button
-              name="open-output-folder"
+              name="mount-folder"
               className="btn w-full"
               onClick={async () => {
                 const workingDir =
@@ -147,7 +146,7 @@ export default function Home() {
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
               }}
             >
-              Way-3. Choose Working Folder (overwrite on save)
+              Way-3. Mount a Folder
             </button>
             <i>* possibly choose /ComfyUI/output</i>
             {/* <div>* /ComfyUI/output</div> */}
@@ -321,6 +320,7 @@ export default function Home() {
           Fork me on GitHub
         </a>
       </span>
+      <Toaster />
     </div>
   );
 
@@ -377,6 +377,14 @@ export default function Home() {
     if (snap.editing_index === -1) chooseNthFileToEdit(readed, 0);
     return readed;
   }
+}
+
+function fileListToArray(files1: FileList) {
+  return Array(files1.length)
+    .fill(0)
+    .map((_, i) => i)
+    .map((i) => files1.item(i))
+    .flatMap((e) => (e ? [e] : []));
 }
 
 function download(file: File) {

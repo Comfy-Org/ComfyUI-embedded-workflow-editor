@@ -1,6 +1,7 @@
 "use client";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import clsx from "clsx";
+import isUrl from "is-url";
 import md5 from "md5";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -57,12 +58,13 @@ export default function Home() {
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
         if (e.name.match(".(png|flac|webp)$")) return true;
-        toast.error("Not Supported format discarded: " + e.name);
+        toast.error(`Discarded not supported format: ${e.name}`);
         return null;
       })
       .map(
         async (e) =>
           await readWorkflowInfo(e).catch((err) => {
+            console.error(err);
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
           })
@@ -104,8 +106,17 @@ export default function Home() {
             <input
               readOnly
               className="input input-bordered border-dashed input-sm w-full text-center"
-              placeholder="Way-1. Paste/Drop images here"
-              onPaste={async (e) => await gotFiles(e.clipboardData.files)}
+              placeholder="Way-1. Paste/Drop images/url here"
+              onPaste={async (e) => {
+                const hasFile = e.clipboardData.files.length;
+                if (hasFile) return await gotFiles(e.clipboardData.files);
+
+                const url = e.clipboardData.getData("text/plain");
+                if (isUrl(url)) return await gotFiles([new File([], url)]);
+
+                toast.error("Not supported format");
+                e.preventDefault();
+              }}
             />
             <motion.button
               name="open-files"

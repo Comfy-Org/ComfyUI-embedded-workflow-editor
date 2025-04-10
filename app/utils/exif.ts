@@ -4,7 +4,7 @@ import { concatUint8Arrays } from "uint8array-extras";
 // Add these constants at the top of the file
 const EXIF_TAGS = {
   UserComment: 0x9286,
-  WorkflowTag: 0x8298  // Using ImageDescription tag for workflow
+  WorkflowTag: 0x8298, // Using ImageDescription tag for workflow
 };
 
 export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
@@ -34,12 +34,12 @@ export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
         keyword_end++;
       }
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       // Get the text
       const contentArraySegment = pngData.slice(
         keyword_end + 1,
-        offset + 8 + length
+        offset + 8 + length,
       );
       const contentJson = new TextDecoder("utf-8").decode(contentArraySegment);
 
@@ -56,7 +56,7 @@ export function getPngMetadata(buffer: ArrayBuffer): Record<string, string> {
 export async function setPngFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string
+  newFilename?: string,
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setPngMetadata(buffer, new_txt_chunks);
@@ -79,7 +79,7 @@ ref: png chunk struct:
 */
 export function setPngMetadata(
   buffer: ArrayBuffer,
-  new_txt_chunks: Record<string, string>
+  new_txt_chunks: Record<string, string>,
 ): Uint8Array {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
@@ -90,7 +90,7 @@ export function setPngMetadata(
   if (dataView.getUint32(0) !== 0x89504e47)
     throw new Error("Not a valid PNG file");
   newPngChunks.push(
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   );
 
   // Start searching for chunks after the PNG signature
@@ -107,7 +107,7 @@ export function setPngMetadata(
       let keyword_end = offset + 8;
       while (pngData[keyword_end] !== 0) keyword_end++;
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       const crc32 = dataView.getUint32(offset + 8 + length);
       // compare crc32
@@ -118,11 +118,11 @@ export function setPngMetadata(
         // Get the text
         const contentArraySegment = pngData.slice(
           keyword_end + 1,
-          offset + 8 + length
+          offset + 8 + length,
         );
         // load old content
         const contentJson = new TextDecoder("utf-8").decode(
-          contentArraySegment
+          contentArraySegment,
         );
         txt_chunks[keyword] = contentJson;
 
@@ -138,7 +138,7 @@ export function setPngMetadata(
           //   new_txt_chunks[keyword] + "\x00"
           // );
           const encoded = new TextEncoder().encode(
-            keyword + "\x00" + new_txt_chunks[keyword]
+            keyword + "\x00" + new_txt_chunks[keyword],
           );
 
           const chunkLength = encoded.length;
@@ -146,14 +146,14 @@ export function setPngMetadata(
 
           // calculate crc32
           const crcTarget = new Uint8Array(
-            chunkType.length + 4 + encoded.length
+            chunkType.length + 4 + encoded.length,
           );
           crcTarget.set(chunkType, 0);
           crcTarget.set(new Uint8Array(chunkLength), chunkType.length);
           const chunkCRC32 = crc32FromArrayBuffer(crcTarget);
           if (new_txt_chunks[keyword] === contentJson && crc32 !== chunkCRC32) {
             console.warn(
-              "warn: crc32 is not matched while content is not changed"
+              "warn: crc32 is not matched while content is not changed",
             );
           }
           // console.warn("keyword", keyword);
@@ -240,7 +240,7 @@ export function getFlacMetadata(buffer: ArrayBuffer): Record<string, string> {
     if (blockType === 4) {
       // Vorbis Comment block type
       vorbisComment = parseVorbisComment(
-        new DataView(buffer, offset, blockSize)
+        new DataView(buffer, offset, blockSize),
       );
     }
 
@@ -301,23 +301,26 @@ export function getWebpMetadata(buffer: ArrayBuffer): Record<string, string> {
   // Start searching for chunks after the WEBP signature
   let offset = 12;
   const txt_chunks: Record<string, string> = {};
-  
+
   // Loop through the chunks in the WEBP file
   while (offset < webp.length) {
     const chunk_length = dataView.getUint32(offset + 4, true);
     const chunk_type = String.fromCharCode(...webp.slice(offset, offset + 4));
-    
+
     if (chunk_type === "EXIF") {
       let exifOffset = offset + 8;
-      
+
       // Check for and skip Exif\0\0 header if present
-      if (String.fromCharCode(...webp.slice(exifOffset, exifOffset + 6)) === "Exif\0\0") {
+      if (
+        String.fromCharCode(...webp.slice(exifOffset, exifOffset + 6)) ===
+        "Exif\0\0"
+      ) {
         exifOffset += 6;
       }
-      
+
       const exifData = webp.slice(exifOffset, offset + 8 + chunk_length);
       const data = decodeWebpExifData(exifData);
-      
+
       // Look specifically for our workflow tag
       if (data[EXIF_TAGS.WorkflowTag]) {
         const value = data[EXIF_TAGS.WorkflowTag];
@@ -328,17 +331,17 @@ export function getWebpMetadata(buffer: ArrayBuffer): Record<string, string> {
       }
       break;
     }
-    
+
     offset += 8 + chunk_length + (chunk_length % 2); // Include padding
   }
-  
+
   return txt_chunks;
 }
 
 export async function setWebpFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string
+  newFilename?: string,
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setWebpMetadata(buffer, new_txt_chunks);
@@ -350,14 +353,17 @@ export async function setWebpFileMetadata(
  */
 export function setWebpMetadata(
   buffer: ArrayBuffer,
-  modifyRecords: Record<string, string>
+  modifyRecords: Record<string, string>,
 ): Uint8Array {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
   const dataView = new DataView(webp.buffer);
 
   // Validate WebP header
-  if (dataView.getUint32(0) !== 0x52494646 || dataView.getUint32(8) !== 0x57454250) {
+  if (
+    dataView.getUint32(0) !== 0x52494646 ||
+    dataView.getUint32(8) !== 0x57454250
+  ) {
     throw new Error("Not a valid WEBP file");
   }
 
@@ -386,9 +392,14 @@ export function setWebpMetadata(
   if (Object.keys(modifyRecords).length > 0) {
     const exifHeader = new TextEncoder().encode("Exif\0\0");
     const tiffHeader = new Uint8Array([
-      0x49, 0x49,  // Little-endian
-      0x2A, 0x00,  // TIFF magic
-      0x08, 0x00, 0x00, 0x00  // IFD offset
+      0x49,
+      0x49, // Little-endian
+      0x2a,
+      0x00, // TIFF magic
+      0x08,
+      0x00,
+      0x00,
+      0x00, // IFD offset
     ]);
 
     // Create IFD entries
@@ -396,35 +407,35 @@ export function setWebpMetadata(
     if (modifyRecords.workflow) {
       // Format the workflow data with the key:value format
       const workflowData = `workflow:${modifyRecords.workflow}`;
-      const workflowValue = new TextEncoder().encode(workflowData + '\0');
+      const workflowValue = new TextEncoder().encode(workflowData + "\0");
       entries.push({
         tag: EXIF_TAGS.WorkflowTag,
-        type: 2,  // ASCII
+        type: 2, // ASCII
         count: workflowValue.length,
-        value: workflowValue
+        value: workflowValue,
       });
     }
 
     // Calculate sizes and offsets
-    const ifdSize = 2 + (entries.length * 12) + 4;  // count + entries + next IFD offset
+    const ifdSize = 2 + entries.length * 12 + 4; // count + entries + next IFD offset
     const valueOffset = tiffHeader.length + ifdSize;
-    
+
     // Create IFD
     const ifd = new Uint8Array(ifdSize);
     const ifdView = new DataView(ifd.buffer);
-    ifdView.setUint16(0, entries.length, true);  // Number of entries
+    ifdView.setUint16(0, entries.length, true); // Number of entries
 
     // Write entries and collect values
     let currentValueOffset = valueOffset;
     const values: Uint8Array[] = [];
-    
+
     entries.forEach((entry, i) => {
-      const entryOffset = 2 + (i * 12);
+      const entryOffset = 2 + i * 12;
       ifdView.setUint16(entryOffset, entry.tag, true);
       ifdView.setUint16(entryOffset + 2, entry.type, true);
       ifdView.setUint32(entryOffset + 4, entry.count, true);
       ifdView.setUint32(entryOffset + 8, currentValueOffset, true);
-      
+
       values.push(entry.value);
       currentValueOffset += entry.value.length;
     });
@@ -434,17 +445,18 @@ export function setWebpMetadata(
       exifHeader,
       tiffHeader,
       ifd,
-      ...values
+      ...values,
     ]);
 
     // Create EXIF chunk header
     const chunkHeader = new Uint8Array(8);
     const headerView = new DataView(chunkHeader.buffer);
-    headerView.setUint32(0, 0x45584946);  // "EXIF"
+    headerView.setUint32(0, 0x45584946); // "EXIF"
     headerView.setUint32(4, exifContent.length, true);
 
     // Add padding if needed
-    const padding = exifContent.length % 2 ? new Uint8Array([0]) : new Uint8Array(0);
+    const padding =
+      exifContent.length % 2 ? new Uint8Array([0]) : new Uint8Array(0);
 
     // Add the new EXIF chunk
     newChunks.push(chunkHeader, exifContent, padding);
@@ -462,11 +474,17 @@ export function setWebpMetadata(
 
 function decodeWebpExifData(exifData: Uint8Array): Record<number, string> {
   const isLittleEndian = String.fromCharCode(...exifData.slice(0, 2)) === "II";
-  
+
   function readInt(offset: number, length: number): number {
     try {
-      const view = new DataView(exifData.buffer, exifData.byteOffset + offset, length);
-      return length === 2 ? view.getUint16(0, isLittleEndian) : view.getUint32(0, isLittleEndian);
+      const view = new DataView(
+        exifData.buffer,
+        exifData.byteOffset + offset,
+        length,
+      );
+      return length === 2
+        ? view.getUint16(0, isLittleEndian)
+        : view.getUint32(0, isLittleEndian);
     } catch (error) {
       console.warn("Error reading integer:", error);
       return 0;
@@ -478,9 +496,9 @@ function decodeWebpExifData(exifData: Uint8Array): Record<number, string> {
 
   try {
     const numEntries = readInt(ifdOffset, 2);
-    
+
     for (let i = 0; i < numEntries; i++) {
-      const entryOffset = ifdOffset + 2 + (i * 12);
+      const entryOffset = ifdOffset + 2 + i * 12;
       const tag = readInt(entryOffset, 2);
       const type = readInt(entryOffset + 2, 2);
       const count = readInt(entryOffset + 4, 4);
@@ -490,7 +508,7 @@ function decodeWebpExifData(exifData: Uint8Array): Record<number, string> {
       if (type === 2) {
         try {
           const value = new TextDecoder().decode(
-            exifData.slice(valueOffset, valueOffset + count - 1) // -1 to exclude null terminator
+            exifData.slice(valueOffset, valueOffset + count - 1), // -1 to exclude null terminator
           );
           result[tag] = value;
         } catch (error) {
@@ -513,7 +531,7 @@ function copyUint8Array(src: Uint8Array): Uint8Array {
 }
 function modifyWebpExifData(
   exifData: Uint8Array,
-  modifyExifData: Record<string, string>
+  modifyExifData: Record<string, string>,
 ): Uint8Array {
   let newExifData: Uint8Array = copyUint8Array(exifData);
 
@@ -537,7 +555,7 @@ function modifyWebpExifData(
     const view = new DataView(
       newExifData.buffer,
       newExifData.byteOffset + offset,
-      length
+      length,
     );
     if (length === 2) {
       view.setUint16(0, value, isLittleEndian);
@@ -567,7 +585,7 @@ function modifyWebpExifData(
       const TYPE_ASCII_string = 2;
       if (type === TYPE_ASCII_string) {
         const value = new TextDecoder("utf-8").decode(
-          exifData.subarray(valueOffset, valueOffset + numValues)
+          exifData.subarray(valueOffset, valueOffset + numValues),
         );
 
         // Check if we need to modify this value
@@ -593,7 +611,7 @@ function modifyWebpExifData(
             newExifData,
             splicedOffset + valueOffset,
             numValues,
-            newValueEncoded
+            newValueEncoded,
           );
 
           // Update the offset for future splices
@@ -618,7 +636,7 @@ export function uint8ArrayToSpliced(
   target: Uint8Array,
   offset: number,
   deleteLength: number,
-  replaceValue: Uint8Array
+  replaceValue: Uint8Array,
 ): Uint8Array {
   const deleted = target.slice(offset, offset + deleteLength);
 
@@ -635,10 +653,10 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
     e.type === "image/webp"
       ? getWebpMetadata(await e.arrayBuffer())
       : e.type === "image/png"
-      ? getPngMetadata(await e.arrayBuffer())
-      : e.type === "audio/flac" || e.type === "audio/x-flac"
-      ? getFlacMetadata(await e.arrayBuffer())
-      : null;
+        ? getPngMetadata(await e.arrayBuffer())
+        : e.type === "audio/flac" || e.type === "audio/x-flac"
+          ? getFlacMetadata(await e.arrayBuffer())
+          : null;
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {

@@ -14,5 +14,5 @@ export const persistState = proxy({
   editing_filename: "",
   editing_workflow_json: "",
 
-  error: ''
+  error: "",
 });

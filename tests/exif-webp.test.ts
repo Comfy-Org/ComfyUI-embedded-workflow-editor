@@ -1,4 +1,4 @@
-import { getWebpMetadata, setWebpMetadata } from "@/app/utils/exif";
+import { getWebpMetadata, setWebpMetadata } from "@/app/utils/exif-webp";
 import { glob } from "glob";
 
 describe("WebP EXIF metadata", () => {

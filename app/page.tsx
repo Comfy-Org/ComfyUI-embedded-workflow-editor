@@ -11,10 +11,10 @@ import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import {
-  readWorkflowInfo,
-  setPngMetadata,
-  setWebpMetadata,
+    readWorkflowInfo,
 } from "./utils/exif";
+import { setPngMetadata } from "./utils/exif-png";
+import { setWebpMetadata } from "./utils/exif-webp";
 /**
  * @author snomiao <snomiao@gmail.com> 2024
  */

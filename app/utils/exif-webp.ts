@@ -1,5 +1,30 @@
 import { concatUint8Arrays } from "uint8array-extras";
-import { IFDEntryInput } from "./exif-webp";
+
+// Reference: - [Exiv2 - Image metadata library and tools]( https://exiv2.org/tags.html )
+export const EXIF_TAGS = {
+  // Using ImageDescription tag for workflow
+  ImageDescription: 0x010e, // Exif.Image.ImageDescription 270
+
+  // Using Make tag for workflow
+  Make: 0x010f, // Exif.Image.Make 271 workflow
+
+  // comfyanonymous/ComfyUI is Using Model tag for prompt
+  // https://github.com/comfyanonymous/ComfyUI/blob/98bdca4cb2907ad10bd24776c0b7587becdd5734/comfy_extras/nodes_images.py#L116C1-L116C74
+  // metadata[0x0110] = "prompt:{}".format(json.dumps(prompt))
+  Model: 0x0110, // Exif.Image.Model 272 prompt:
+
+  UserComment: 0x9286, // Exif.Photo.UserComment 37510
+  Copyright: 0x8298, // Exif.Image.Copyright 33432
+
+  // we use Copyright tag for workflow
+  WorkflowTag: 0x8298, // Exif.Image.Copyright 33432
+};
+
+export type IFDEntryInput = {
+  tag: number;
+  type: number;
+  value: Uint8Array;
+};
 
 export type IFDEntryOutput = {
   tag: number;
@@ -122,14 +147,14 @@ export function decodeTIFFBlock(block: Uint8Array): {
 export function encodeTIFFBlock(
   ifdEntries: IFDEntryInput[],
   {
-    tailPadding = 0, isLittleEndian = true,
-  }: { tailPadding?: number; isLittleEndian?: boolean; } = {}
+    tailPadding = 0,
+    isLittleEndian = true,
+  }: { tailPadding?: number; isLittleEndian?: boolean } = {}
 ): Uint8Array {
   const tiffHeader = new Uint8Array(8);
   tiffHeader.set(new TextEncoder().encode(isLittleEndian ? "II" : "MM"), 0); // little-endian or big-endian
   new DataView(tiffHeader.buffer).setUint16(2, 42, isLittleEndian); // TIFF magic number
   new DataView(tiffHeader.buffer).setUint32(4, 8, isLittleEndian); // offset to first IFD
-
 
   // Calculate sizes and offsets
   const ifdSize = 2 + ifdEntries.length * 12 + 4; // count + entries + next IFD offset
@@ -139,7 +164,6 @@ export function encodeTIFFBlock(
   const ifd = new Uint8Array(ifdSize);
   const ifdView = new DataView(ifd.buffer);
   ifdView.setUint16(0, ifdEntries.length, isLittleEndian); // Number of entries
-
 
   // Write entries and collect values
   const values: Uint8Array[] = [];
@@ -160,12 +184,10 @@ export function encodeTIFFBlock(
 
     values.push(entry.value);
     valueOffset += entry.value.length;
-
   });
 
   // Write next IFD offset
   ifdView.setUint32(ifdSize - 4, 0, isLittleEndian); // No next IFD
-
 
   // Write tail padding
   const tailPaddingBuffer = new Uint8Array(tailPadding);
@@ -180,11 +202,8 @@ export function encodeTIFFBlock(
 
   // console.log("LEN", tiffBlock.length);
   return tiffBlock;
-}export type IFDEntryInput = {
-  tag: number;
-  type: number;
-  value: Uint8Array;
-};
+}
+
 export function getWebpMetadata(
   buffer: Uint8Array | ArrayBuffer
 ): Record<string, string> {
@@ -192,8 +211,10 @@ export function getWebpMetadata(
   const dataView = new DataView(webp.buffer);
 
   // Check that the WEBP signature is present
-  if (dataView.getUint32(0) !== 0x52494646 ||
-    dataView.getUint32(8) !== 0x57454250) {
+  if (
+    dataView.getUint32(0) !== 0x52494646 ||
+    dataView.getUint32(8) !== 0x57454250
+  ) {
     console.error("Not a valid WEBP file");
     return {};
   }
@@ -246,8 +267,10 @@ export function setWebpMetadata(
   const dataView = new DataView(webp.buffer);
 
   // Validate WebP header
-  if (String.fromCharCode(...webp.slice(0, 0 + 4)) !== "RIFF" ||
-    String.fromCharCode(...webp.slice(8, 8 + 4)) !== "WEBP") {
+  if (
+    String.fromCharCode(...webp.slice(0, 0 + 4)) !== "RIFF" ||
+    String.fromCharCode(...webp.slice(8, 8 + 4)) !== "WEBP"
+  ) {
     throw new Error("Not a valid WEBP file");
   }
 
@@ -319,7 +342,8 @@ export function setWebpMetadata(
       const exifHeader = exifHeaderLength
         ? new TextEncoder().encode("Exif\0\0")
         : new Uint8Array(0);
-      const padding = newChunkLength % 2 ? new Uint8Array([0]) : new Uint8Array(0);
+      const padding =
+        newChunkLength % 2 ? new Uint8Array([0]) : new Uint8Array(0);
       //
       const chunkContent = concatUint8Arrays([
         chunkHeader,
@@ -365,7 +389,8 @@ export function setWebpMetadata(
     headerView.setUint32(4, exifContent.length, true);
 
     // Add chunk padding if needed
-    const padding = exifContent.length % 2 ? new Uint8Array([0]) : new Uint8Array(0);
+    const padding =
+      exifContent.length % 2 ? new Uint8Array([0]) : new Uint8Array(0);
 
     // Add the new EXIF chunk
     newChunks.push(chunkHeader, exifContent, padding);
@@ -380,29 +405,4 @@ export function setWebpMetadata(
 
   return newWebpData;
 }
-// Reference: - [Exiv2 - Image metadata library and tools]( https://exiv2.org/tags.html )
-
-export const EXIF_TAGS = {
-  // Using ImageDescription tag for workflow
-  ImageDescription: 0x010e, // Exif.Image.ImageDescription 270
-
-
-  // Using Make tag for workflow
-  Make: 0x010f, // Exif.Image.Make 271 workflow
-
-
-
-
-  // comfyanonymous/ComfyUI is Using Model tag for prompt
-  // https://github.com/comfyanonymous/ComfyUI/blob/98bdca4cb2907ad10bd24776c0b7587becdd5734/comfy_extras/nodes_images.py#L116C1-L116C74
-  // metadata[0x0110] = "prompt:{}".format(json.dumps(prompt))
-  Model: 0x0110, // Exif.Image.Model 272 prompt:
-
-  UserComment: 0x9286, // Exif.Photo.UserComment 37510
-  Copyright: 0x8298, // Exif.Image.Copyright 33432
-
-
-  // we use Copyright tag for workflow
-  WorkflowTag: 0x8298, // Exif.Image.Copyright 33432
-};
 

@@ -168,6 +168,7 @@ export default function Home() {
                   className={clsx("p-1", {
                     "bg-slate-200": editingTask?.name === e.name,
                   })}
+                  onClick={() => chooseNthFileToEdit(tasklist, i)}
                 >
                   <input
                     id={id}

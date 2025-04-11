@@ -53,12 +53,12 @@ export function getPngMetadata(
         keyword_end++;
       }
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       // Get the text
       const contentArraySegment = pngData.slice(
         keyword_end + 1,
-        offset + 8 + length
+        offset + 8 + length,
       );
       const contentJson = new TextDecoder("utf-8").decode(contentArraySegment);
 
@@ -75,7 +75,7 @@ export function getPngMetadata(
 export async function setPngFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string
+  newFilename?: string,
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setPngMetadata(buffer, new_txt_chunks);
@@ -98,7 +98,7 @@ ref: png chunk struct:
 */
 export function setPngMetadata(
   buffer: ArrayBuffer,
-  new_txt_chunks: Record<string, string>
+  new_txt_chunks: Record<string, string>,
 ): Uint8Array {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
@@ -109,7 +109,7 @@ export function setPngMetadata(
   if (dataView.getUint32(0) !== 0x89504e47)
     throw new Error("Not a valid PNG file");
   newPngChunks.push(
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   );
 
   // Start searching for chunks after the PNG signature
@@ -126,7 +126,7 @@ export function setPngMetadata(
       let keyword_end = offset + 8;
       while (pngData[keyword_end] !== 0) keyword_end++;
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       const crc32 = dataView.getUint32(offset + 8 + length);
       // compare crc32
@@ -137,11 +137,11 @@ export function setPngMetadata(
         // Get the text
         const contentArraySegment = pngData.slice(
           keyword_end + 1,
-          offset + 8 + length
+          offset + 8 + length,
         );
         // load old content
         const contentJson = new TextDecoder("utf-8").decode(
-          contentArraySegment
+          contentArraySegment,
         );
         txt_chunks[keyword] = contentJson;
 
@@ -157,7 +157,7 @@ export function setPngMetadata(
           //   new_txt_chunks[keyword] + "\x00"
           // );
           const encoded = new TextEncoder().encode(
-            keyword + "\x00" + new_txt_chunks[keyword]
+            keyword + "\x00" + new_txt_chunks[keyword],
           );
 
           const chunkLength = encoded.length;
@@ -165,14 +165,14 @@ export function setPngMetadata(
 
           // calculate crc32
           const crcTarget = new Uint8Array(
-            chunkType.length + 4 + encoded.length
+            chunkType.length + 4 + encoded.length,
           );
           crcTarget.set(chunkType, 0);
           crcTarget.set(new Uint8Array(chunkLength), chunkType.length);
           const chunkCRC32 = crc32FromArrayBuffer(crcTarget);
           if (new_txt_chunks[keyword] === contentJson && crc32 !== chunkCRC32) {
             console.warn(
-              "warn: crc32 is not matched while content is not changed"
+              "warn: crc32 is not matched while content is not changed",
             );
           }
           // console.warn("keyword", keyword);
@@ -261,7 +261,7 @@ export function getFlacMetadata(
     if (blockType === 4) {
       // Vorbis Comment block type
       vorbisComment = parseVorbisComment(
-        new DataView(buffer, offset, blockSize)
+        new DataView(buffer, offset, blockSize),
       );
     }
 
@@ -360,7 +360,7 @@ export function getWebpMetadata(
 export async function setWebpFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string
+  newFilename?: string,
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setWebpMetadata(buffer, new_txt_chunks);
@@ -557,7 +557,7 @@ function decodeWebpExifData(exifData: Uint8Array): Record<number, string> {
       if (type === 2) {
         try {
           const value = new TextDecoder().decode(
-            exifData.slice(valueOffset, valueOffset + count - 1) // -1 to exclude null terminator
+            exifData.slice(valueOffset, valueOffset + count - 1), // -1 to exclude null terminator
           );
           result[tag] = value;
         } catch (error) {
@@ -580,7 +580,7 @@ function copyUint8Array(src: Uint8Array): Uint8Array {
 }
 function modifyWebpExifData(
   exifData: Uint8Array,
-  modifyExifData: Record<string, string>
+  modifyExifData: Record<string, string>,
 ): Uint8Array {
   let newExifData: Uint8Array = copyUint8Array(exifData);
 
@@ -604,7 +604,7 @@ function modifyWebpExifData(
     const view = new DataView(
       newExifData.buffer,
       newExifData.byteOffset + offset,
-      length
+      length,
     );
     if (length === 2) {
       view.setUint16(0, value, isLittleEndian);
@@ -634,7 +634,7 @@ function modifyWebpExifData(
       const TYPE_ASCII_string = 2;
       if (type === TYPE_ASCII_string) {
         const value = new TextDecoder("utf-8").decode(
-          exifData.subarray(valueOffset, valueOffset + numValues)
+          exifData.subarray(valueOffset, valueOffset + numValues),
         );
 
         // Check if we need to modify this value
@@ -660,7 +660,7 @@ function modifyWebpExifData(
             newExifData,
             splicedOffset + valueOffset,
             numValues,
-            newValueEncoded
+            newValueEncoded,
           );
 
           // Update the offset for future splices
@@ -685,7 +685,7 @@ export function uint8ArrayToSpliced(
   target: Uint8Array,
   offset: number,
   deleteLength: number,
-  replaceValue: Uint8Array
+  replaceValue: Uint8Array,
 ): Uint8Array {
   const deleted = target.slice(offset, offset + deleteLength);
 
@@ -702,10 +702,10 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
     e.type === "image/webp"
       ? getWebpMetadata(await e.arrayBuffer())
       : e.type === "image/png"
-      ? getPngMetadata(await e.arrayBuffer())
-      : e.type === "audio/flac" || e.type === "audio/x-flac"
-      ? getFlacMetadata(await e.arrayBuffer())
-      : null;
+        ? getPngMetadata(await e.arrayBuffer())
+        : e.type === "audio/flac" || e.type === "audio/x-flac"
+          ? getFlacMetadata(await e.arrayBuffer())
+          : null;
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {

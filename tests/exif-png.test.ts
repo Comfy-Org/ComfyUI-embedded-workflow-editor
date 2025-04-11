@@ -31,7 +31,7 @@ it("set png workflow", async () => {
     const file2 = new File([buffer2], png.name!);
 
     const workflow_actual = JSON.stringify(
-      JSON.parse(getPngMetadata(await file2.arrayBuffer()).workflow)
+      JSON.parse(getPngMetadata(await file2.arrayBuffer()).workflow),
     );
     const workflow_expect = JSON.stringify(JSON.parse(newWorkflow));
     expect(workflow_expect).toEqual(workflow_actual);

@@ -52,12 +52,12 @@ export function getPngMetadata(
         keyword_end++;
       }
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end),
+        ...pngData.slice(offset + 8, keyword_end)
       );
       // Get the text
       const contentArraySegment = pngData.slice(
         keyword_end + 1,
-        offset + 8 + length,
+        offset + 8 + length
       );
       const contentJson = new TextDecoder("utf-8").decode(contentArraySegment);
 
@@ -74,7 +74,7 @@ export function getPngMetadata(
 export async function setPngFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string,
+  newFilename?: string
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setPngMetadata(buffer, new_txt_chunks);
@@ -97,7 +97,7 @@ ref: png chunk struct:
 */
 export function setPngMetadata(
   buffer: ArrayBuffer,
-  new_txt_chunks: Record<string, string>,
+  new_txt_chunks: Record<string, string>
 ): Uint8Array {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
@@ -108,7 +108,7 @@ export function setPngMetadata(
   if (dataView.getUint32(0) !== 0x89504e47)
     throw new Error("Not a valid PNG file");
   newPngChunks.push(
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
   );
 
   // Start searching for chunks after the PNG signature
@@ -125,7 +125,7 @@ export function setPngMetadata(
       let keyword_end = offset + 8;
       while (pngData[keyword_end] !== 0) keyword_end++;
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end),
+        ...pngData.slice(offset + 8, keyword_end)
       );
       const crc32 = dataView.getUint32(offset + 8 + length);
       // compare crc32
@@ -136,11 +136,11 @@ export function setPngMetadata(
         // Get the text
         const contentArraySegment = pngData.slice(
           keyword_end + 1,
-          offset + 8 + length,
+          offset + 8 + length
         );
         // load old content
         const contentJson = new TextDecoder("utf-8").decode(
-          contentArraySegment,
+          contentArraySegment
         );
         txt_chunks[keyword] = contentJson;
 
@@ -156,7 +156,7 @@ export function setPngMetadata(
           //   new_txt_chunks[keyword] + "\x00"
           // );
           const encoded = new TextEncoder().encode(
-            keyword + "\x00" + new_txt_chunks[keyword],
+            keyword + "\x00" + new_txt_chunks[keyword]
           );
 
           const chunkLength = encoded.length;
@@ -164,14 +164,14 @@ export function setPngMetadata(
 
           // calculate crc32
           const crcTarget = new Uint8Array(
-            chunkType.length + 4 + encoded.length,
+            chunkType.length + 4 + encoded.length
           );
           crcTarget.set(chunkType, 0);
           crcTarget.set(new Uint8Array(chunkLength), chunkType.length);
           const chunkCRC32 = crc32FromArrayBuffer(crcTarget);
           if (new_txt_chunks[keyword] === contentJson && crc32 !== chunkCRC32) {
             console.warn(
-              "warn: crc32 is not matched while content is not changed",
+              "warn: crc32 is not matched while content is not changed"
             );
           }
           // console.warn("keyword", keyword);
@@ -260,7 +260,7 @@ export function getFlacMetadata(
     if (blockType === 4) {
       // Vorbis Comment block type
       vorbisComment = parseVorbisComment(
-        new DataView(buffer, offset, blockSize),
+        new DataView(buffer, offset, blockSize)
       );
     }
 
@@ -359,7 +359,7 @@ export function getWebpMetadata(
 export async function setWebpFileMetadata(
   file: File,
   new_txt_chunks: Record<string, string>,
-  newFilename?: string,
+  newFilename?: string
 ): Promise<File> {
   const buffer = await file.arrayBuffer();
   const newBuffer = setWebpMetadata(buffer, new_txt_chunks);
@@ -473,8 +473,12 @@ export function setWebpMetadata(
   if (Object.keys(modifyRecords).length > 0 && exifChunkFound) {
     console.warn("Warning: Found exif chunk but fail to modify it");
   }
+  // if no EXIF section was found, add new metadata chunks
   if (Object.keys(modifyRecords).length > 0 && !exifChunkFound) {
-    // Create IFD entries
+    // Exif Header
+    const exifHeader = new TextEncoder().encode("Exif\0\0");
+
+    // Create TIFF Block
     const ifdEntries: IFDEntryInput[] = Object.entries(modifyRecords).map(
       ([key, value], i) => {
         return {
@@ -484,13 +488,6 @@ export function setWebpMetadata(
         };
       }
     );
-
-    let hasExifHeader = true; // default
-    const exifHeader = hasExifHeader
-      ? new TextEncoder().encode("Exif\0\0")
-      : new Uint8Array(0);
-
-    // Create TIFF header
     const tiffBlock = encodeTIFFBlock(ifdEntries);
 
     // Combine all parts
@@ -502,7 +499,7 @@ export function setWebpMetadata(
     chunkHeader.set(new TextEncoder().encode("EXIF"), 0);
     headerView.setUint32(4, exifContent.length, true);
 
-    // Add padding if needed
+    // Add chunk padding if needed
     const padding =
       exifContent.length % 2 ? new Uint8Array([0]) : new Uint8Array(0);
 
@@ -526,10 +523,10 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
     e.type === "image/webp"
       ? getWebpMetadata(await e.arrayBuffer())
       : e.type === "image/png"
-        ? getPngMetadata(await e.arrayBuffer())
-        : e.type === "audio/flac" || e.type === "audio/x-flac"
-          ? getFlacMetadata(await e.arrayBuffer())
-          : null;
+      ? getPngMetadata(await e.arrayBuffer())
+      : e.type === "audio/flac" || e.type === "audio/x-flac"
+      ? getFlacMetadata(await e.arrayBuffer())
+      : null;
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {

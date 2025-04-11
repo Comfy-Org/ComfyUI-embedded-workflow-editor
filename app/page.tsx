@@ -10,11 +10,9 @@ import useSWR from "swr";
 import TimeAgo from "timeago-react";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
-import {
-  readWorkflowInfo,
-  setPngMetadata,
-  setWebpMetadata,
-} from "./utils/exif";
+import { readWorkflowInfo } from "./utils/exif";
+import { setPngMetadata } from "./utils/exif-png";
+import { setWebpMetadata } from "./utils/exif-webp";
 /**
  * @author snomiao <snomiao@gmail.com> 2024
  */
@@ -170,6 +168,7 @@ export default function Home() {
                   className={clsx("p-1", {
                     "bg-slate-200": editingTask?.name === e.name,
                   })}
+                  onClick={() => chooseNthFileToEdit(tasklist, i)}
                 >
                   <input
                     id={id}
@@ -333,6 +332,9 @@ export default function Home() {
     const handlers: { [key: string]: () => Uint8Array } = {
       "image/png": () => setPngMetadata(buffer, modifiedMetadata),
       "image/webp": () => setWebpMetadata(buffer, modifiedMetadata),
+      "audio/flac": () => {
+        throw new Error("Not supported file type");
+      },
     };
 
     const newBuffer = handlers[file.type]?.();

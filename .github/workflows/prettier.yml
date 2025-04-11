@@ -1,26 +1,26 @@
 name: Automatic Prettier
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-    build:
-        permissions:
-          contents: write
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-            - name: Set up Node.js
-              uses: actions/setup-node@v2
-              with:
-                  node-version: '18'
-            - run: npm install -g bun
-            - run: bun install
-            - run: bunx prettier -w .
-            # commit prettier fixed code
-            - uses: stefanzweifel/git-auto-commit-action@v5
-              with:
-                commit_message: "format: Apply prettier --fix changes"
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
+      - run: npm install -g bun
+      - run: bun install
+      - run: bunx prettier -w .
+      # commit prettier fixed code
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "format: Apply prettier --fix changes"

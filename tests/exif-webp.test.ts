@@ -1,10 +1,52 @@
-import { getWebpMetadata, setWebpMetadata } from "@/app/utils/exif";
+import { getWebpMetadata, setWebpMetadata } from "@/app/utils/exif-webp";
 import { glob } from "glob";
 
 describe("WebP EXIF metadata", () => {
-  it("should handle files with no existing metadata", async () => {
+  describe("It should keep original value if nothing has changed", async () => {
+    const files = await glob("./tests/**/*.webp");
+    for await (const file of files) {
+      const webp = Bun.file(file);
+      const originalBuffer = await webp.arrayBuffer();
+
+      const workflow = getWebpMetadata(originalBuffer).workflow;
+      if (!workflow) continue;
+
+      it(`should keep original value after setting for ${file}`, async () => {
+        // Set metadata without changing the content
+        const buffer = setWebpMetadata(originalBuffer, {
+          workflow: workflow,
+        });
+        const workflow2 = getWebpMetadata(buffer).workflow;
+        expect(workflow2).toEqual(workflow);
+      });
+    }
+  });
+  describe("It should keep original hash if nothing has changed", async () => {
     const files = await glob("./tests/*.webp");
-    expect(files.length).toBeGreaterThanOrEqual(1);
+    for await (const file of files) {
+      const webp = Bun.file(file);
+      const originalBuffer = await webp.arrayBuffer();
+      const originalHash = Bun.hash(originalBuffer);
+
+      const workflow = getWebpMetadata(originalBuffer).workflow;
+      if (!workflow) continue;
+
+      it(`should keep original hash for ${file}`, async () => {
+        // Set metadata without changing the content
+        const buffer = setWebpMetadata(originalBuffer, {
+          workflow: workflow,
+        });
+
+        // Verify the hash remains the same
+        const newHash = Bun.hash(buffer);
+        expect(newHash).toEqual(originalHash);
+      });
+    }
+  });
+
+  it("should handle files with no existing metadata", async () => {
+    const files = await glob("./tests/empty-workflow.webp");
+    expect(files.length).toEqual(1);
     const webp = Bun.file(files[0]);
 
     // First strip any existing metadata by creating a new file
@@ -15,6 +57,46 @@ describe("WebP EXIF metadata", () => {
     // Then add new metadata
     const newWorkflow = '{"test":"new metadata"}';
     const buffer = setWebpMetadata(await stripped.arrayBuffer(), {
+      workflow: newWorkflow,
+    });
+
+    // Verify the metadata was added correctly
+    const metadata = getWebpMetadata(buffer);
+    expect(metadata.workflow).toBe(newWorkflow);
+  });
+
+  it("should handle files with copyright field metadata, hunyuan3d.webp", async () => {
+    const webp = Bun.file(
+      "./tests/malformed/hunyuan3d-non-multiview-train.webp",
+    );
+    const json = Bun.file(
+      "./tests/malformed/hunyuan3d-non-multiview-train.workflow.json",
+    );
+
+    const gotMetadata = getWebpMetadata(await webp.arrayBuffer());
+    expect(gotMetadata.workflow).toBe(JSON.stringify(await json.json()));
+
+    // Then add new metadata
+    const newWorkflow = '{"test":"new metadata"}';
+    const buffer = setWebpMetadata(await webp.arrayBuffer(), {
+      workflow: newWorkflow,
+    });
+
+    // Verify the metadata was added correctly
+    const metadata = getWebpMetadata(buffer);
+    expect(metadata.workflow).toBe(newWorkflow);
+  });
+
+  it("should handle files with copyright field metadata, robot.webp", async () => {
+    const webp = Bun.file("./tests/malformed/robot.webp");
+    const json = Bun.file("./tests/malformed/robot.workflow.json");
+
+    const gotMetadata = getWebpMetadata(await webp.arrayBuffer());
+    expect(gotMetadata.workflow).toBe(JSON.stringify(await json.json()));
+
+    // Then add new metadata
+    const newWorkflow = '{"test":"new metadata"}';
+    const buffer = setWebpMetadata(await webp.arrayBuffer(), {
       workflow: newWorkflow,
     });
 
@@ -118,7 +200,7 @@ describe("WebP EXIF metadata", () => {
 
     // Create a large workflow object
     const largeWorkflow = JSON.stringify({
-      test: "x".repeat(1000),
+      test: "x".repeat(10000),
       array: Array(100).fill("test"),
       nested: { deep: { deeper: { deepest: "value" } } },
     });
@@ -143,13 +225,15 @@ describe("WebP EXIF metadata", () => {
     // Verify chunk alignment
     const chunks = await getAllChunks(buffer);
     chunks.forEach((chunk) => {
-      expect(chunk.length % 2).toBe(0, "Chunk length should be even");
+      expect(chunk.length % 2).toBe(0); // Each chunk should be even-length
     });
   });
 });
 
 // Helper function to extract EXIF chunk from WebP file
-async function extractExifChunk(buffer: ArrayBuffer): Promise<string> {
+async function extractExifChunk(
+  buffer: Uint8Array | ArrayBuffer,
+): Promise<string> {
   const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);
   let offset = 12; // Skip RIFF header and WEBP signature
@@ -170,7 +254,9 @@ async function extractExifChunk(buffer: ArrayBuffer): Promise<string> {
 }
 
 // Helper function to get all chunks from WebP file
-async function getAllChunks(buffer: ArrayBuffer): Promise<Uint8Array[]> {
+async function getAllChunks(
+  buffer: Uint8Array | ArrayBuffer,
+): Promise<Uint8Array[]> {
   const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);
   let offset = 12; // Skip RIFF header and WEBP signature

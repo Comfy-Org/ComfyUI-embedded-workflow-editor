@@ -1,4 +1,4 @@
-import { getPngMetadata, setPngMetadata } from "@/app/utils/exif";
+import { getPngMetadata, setPngMetadata } from "@/app/utils/exif-png";
 import { glob } from "glob";
 
 it("extract png workflow", async () => {

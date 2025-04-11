@@ -8,10 +8,10 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
     e.type === "image/webp"
       ? getWebpMetadata(await e.arrayBuffer())
       : e.type === "image/png"
-      ? getPngMetadata(await e.arrayBuffer())
-      : e.type === "audio/flac" || e.type === "audio/x-flac"
-      ? getFlacMetadata(await e.arrayBuffer())
-      : null;
+        ? getPngMetadata(await e.arrayBuffer())
+        : e.type === "audio/flac" || e.type === "audio/x-flac"
+          ? getFlacMetadata(await e.arrayBuffer())
+          : null;
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {

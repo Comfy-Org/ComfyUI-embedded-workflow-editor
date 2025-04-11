@@ -79,7 +79,7 @@ export function decodeTIFFBlock(block: Uint8Array): {
     const offset = view.getUint32(entryOffset + 8, isLE);
     if (offset !== predictOffset) {
       console.warn(
-        `WARNING: predictOffset ${predictOffset} !== offset ${offset}, your tiff block may be corrupted`
+        `WARNING: predictOffset ${predictOffset} !== offset ${offset}, your tiff block may be corrupted`,
       );
     }
 
@@ -121,7 +121,7 @@ export function decodeTIFFBlock(block: Uint8Array): {
     predictOffset === block.length,
     predictOffset,
     block.length,
-    tailPadding
+    tailPadding,
   );
   // entries.map((entry) =>
   //   console.log([...entry.value].map((e) => Number(e).toString(16)).join(' ') + '\n')
@@ -149,7 +149,7 @@ export function encodeTIFFBlock(
   {
     tailPadding = 0,
     isLittleEndian = true,
-  }: { tailPadding?: number; isLittleEndian?: boolean } = {}
+  }: { tailPadding?: number; isLittleEndian?: boolean } = {},
 ): Uint8Array {
   const tiffHeader = new Uint8Array(8);
   tiffHeader.set(new TextEncoder().encode(isLittleEndian ? "II" : "MM"), 0); // little-endian or big-endian
@@ -205,7 +205,7 @@ export function encodeTIFFBlock(
 }
 
 export function getWebpMetadata(
-  buffer: Uint8Array | ArrayBuffer
+  buffer: Uint8Array | ArrayBuffer,
 ): Record<string, string> {
   const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);
@@ -233,7 +233,7 @@ export function getWebpMetadata(
         exifHeaderLength = 6;
 
       const data = decodeTIFFBlock(
-        webp.slice(offset + exifHeaderLength, offset + chunk_length)
+        webp.slice(offset + exifHeaderLength, offset + chunk_length),
       );
       data.entries
         .map(({ ascii }) => ascii!)
@@ -260,7 +260,7 @@ export function getWebpMetadata(
  */
 export function setWebpMetadata(
   buffer: ArrayBuffer | Uint8Array,
-  modifyRecords: Record<string, string>
+  modifyRecords: Record<string, string>,
 ): Uint8Array {
   const webp = new Uint8Array(buffer);
   const newChunks: Uint8Array[] = [];
@@ -296,7 +296,7 @@ export function setWebpMetadata(
 
       const tiffBlockOriginal = webp.slice(
         offset + exifHeaderLength,
-        offset + chunk_length
+        offset + chunk_length,
       );
       const tiff = decodeTIFFBlock(tiffBlockOriginal);
       // console.log(tiff);
@@ -312,7 +312,7 @@ export function setWebpMetadata(
         }
         const [key, value] = [ascii.slice(0, index), ascii.slice(index + 1)];
         encodeEntries[i].value = new TextEncoder().encode(
-          `${key}:${modifyRecords[key] ?? value}\0`
+          `${key}:${modifyRecords[key] ?? value}\0`,
         );
         delete modifyRecords[key]; // mark used
       });
@@ -375,7 +375,7 @@ export function setWebpMetadata(
           type: 2, // ASCII
           value: new TextEncoder().encode(`${key}:${value}\0`),
         };
-      }
+      },
     );
     const tiffBlock = encodeTIFFBlock(ifdEntries);
 
@@ -405,4 +405,3 @@ export function setWebpMetadata(
 
   return newWebpData;
 }
-

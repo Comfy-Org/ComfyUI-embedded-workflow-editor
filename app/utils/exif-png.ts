@@ -2,7 +2,7 @@ import { crc32FromArrayBuffer } from "crc32-from-arraybuffer";
 import { concatUint8Arrays } from "uint8array-extras";
 
 export function getPngMetadata(
-  buffer: Uint8Array | ArrayBuffer
+  buffer: Uint8Array | ArrayBuffer,
 ): Record<string, string> {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
@@ -30,12 +30,12 @@ export function getPngMetadata(
         keyword_end++;
       }
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       // Get the text
       const contentArraySegment = pngData.slice(
         keyword_end + 1,
-        offset + 8 + length
+        offset + 8 + length,
       );
       const contentJson = new TextDecoder("utf-8").decode(contentArraySegment);
 
@@ -47,7 +47,7 @@ export function getPngMetadata(
     offset += 12 + length;
   }
   return txt_chunks;
-}/*
+} /*
 ref: png chunk struct:
 {
   uint32 length;
@@ -64,7 +64,7 @@ ref: png chunk struct:
 
 export function setPngMetadata(
   buffer: ArrayBuffer,
-  new_txt_chunks: Record<string, string>
+  new_txt_chunks: Record<string, string>,
 ): Uint8Array {
   // Get the PNG data as a Uint8Array
   const pngData = new Uint8Array(buffer);
@@ -75,7 +75,7 @@ export function setPngMetadata(
   if (dataView.getUint32(0) !== 0x89504e47)
     throw new Error("Not a valid PNG file");
   newPngChunks.push(
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   );
 
   // Start searching for chunks after the PNG signature
@@ -92,7 +92,7 @@ export function setPngMetadata(
       let keyword_end = offset + 8;
       while (pngData[keyword_end] !== 0) keyword_end++;
       const keyword = String.fromCharCode(
-        ...pngData.slice(offset + 8, keyword_end)
+        ...pngData.slice(offset + 8, keyword_end),
       );
       const crc32 = dataView.getUint32(offset + 8 + length);
       // compare crc32
@@ -103,11 +103,11 @@ export function setPngMetadata(
         // Get the text
         const contentArraySegment = pngData.slice(
           keyword_end + 1,
-          offset + 8 + length
+          offset + 8 + length,
         );
         // load old content
         const contentJson = new TextDecoder("utf-8").decode(
-          contentArraySegment
+          contentArraySegment,
         );
         txt_chunks[keyword] = contentJson;
 
@@ -123,7 +123,7 @@ export function setPngMetadata(
           //   new_txt_chunks[keyword] + "\x00"
           // );
           const encoded = new TextEncoder().encode(
-            keyword + "\x00" + new_txt_chunks[keyword]
+            keyword + "\x00" + new_txt_chunks[keyword],
           );
 
           const chunkLength = encoded.length;
@@ -131,14 +131,14 @@ export function setPngMetadata(
 
           // calculate crc32
           const crcTarget = new Uint8Array(
-            chunkType.length + 4 + encoded.length
+            chunkType.length + 4 + encoded.length,
           );
           crcTarget.set(chunkType, 0);
           crcTarget.set(new Uint8Array(chunkLength), chunkType.length);
           const chunkCRC32 = crc32FromArrayBuffer(crcTarget);
           if (new_txt_chunks[keyword] === contentJson && crc32 !== chunkCRC32) {
             console.warn(
-              "warn: crc32 is not matched while content is not changed"
+              "warn: crc32 is not matched while content is not changed",
             );
           }
           // console.warn("keyword", keyword);
@@ -194,4 +194,3 @@ export function setPngMetadata(
   const newPngData = concatUint8Arrays(newPngChunks);
   return newPngData;
 }
-

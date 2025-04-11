@@ -66,9 +66,11 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle files with copyright field metadata, hunyuan3d.webp", async () => {
-    const webp = Bun.file("./tests/malformed/hunyuan3d-non-multiview-train.webp");
+    const webp = Bun.file(
+      "./tests/malformed/hunyuan3d-non-multiview-train.webp",
+    );
     const json = Bun.file(
-      "./tests/malformed/hunyuan3d-non-multiview-train.workflow.json"
+      "./tests/malformed/hunyuan3d-non-multiview-train.workflow.json",
     );
 
     const gotMetadata = getWebpMetadata(await webp.arrayBuffer());
@@ -230,7 +232,7 @@ describe("WebP EXIF metadata", () => {
 
 // Helper function to extract EXIF chunk from WebP file
 async function extractExifChunk(
-  buffer: Uint8Array | ArrayBuffer
+  buffer: Uint8Array | ArrayBuffer,
 ): Promise<string> {
   const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);
@@ -253,7 +255,7 @@ async function extractExifChunk(
 
 // Helper function to get all chunks from WebP file
 async function getAllChunks(
-  buffer: Uint8Array | ArrayBuffer
+  buffer: Uint8Array | ArrayBuffer,
 ): Promise<Uint8Array[]> {
   const webp = new Uint8Array(buffer);
   const dataView = new DataView(webp.buffer);

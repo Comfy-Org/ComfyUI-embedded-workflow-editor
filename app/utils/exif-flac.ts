@@ -1,7 +1,5 @@
-
-
 export function getFlacMetadata(
-  input: Uint8Array | ArrayBuffer
+  input: Uint8Array | ArrayBuffer,
 ): Record<string, string> {
   const buffer = new Uint8Array(input).buffer;
   const dataView = new DataView(buffer);
@@ -24,7 +22,7 @@ export function getFlacMetadata(
     if (blockType === 4) {
       // Vorbis Comment block type
       vorbisComment = parseVorbisComment(
-        new DataView(buffer, offset, blockSize)
+        new DataView(buffer, offset, blockSize),
       );
     }
 
@@ -33,7 +31,12 @@ export function getFlacMetadata(
   }
 
   return vorbisComment!;
-}export function getString(dataView: DataView, offset: number, length: number): string {
+}
+export function getString(
+  dataView: DataView,
+  offset: number,
+  length: number,
+): string {
   let string = "";
   for (let i = 0; i < length; i++) {
     string += String.fromCharCode(dataView.getUint8(offset + i));
@@ -66,4 +69,3 @@ export function parseVorbisComment(dataView: DataView): Record<string, string> {
 
   return comments;
 }
-

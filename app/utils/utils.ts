@@ -1,4 +1,3 @@
-
 export function removeExt(f: string) {
   if (!f) return f;
   const p = f.lastIndexOf(".");

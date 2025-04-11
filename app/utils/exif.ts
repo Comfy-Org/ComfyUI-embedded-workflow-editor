@@ -1,5 +1,4 @@
 import { crc32FromArrayBuffer } from "crc32-from-arraybuffer";
-import fastDiff from "fast-diff";
 import { concatUint8Arrays } from "uint8array-extras";
 import { decodeTIFFBlock } from "./decodeTIFFBlock";
 import { encodeTIFFBlock, IFDEntryInput } from "./encodeTIFFBlock";

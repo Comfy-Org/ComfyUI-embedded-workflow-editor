@@ -16,10 +16,13 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
 - [x] Support for more image formats (png, jpg, webp, etc)
   - [x] png read/write
   - [x] webp read/write
+  - [x] Flac read
+  - [ ] Flac write
+  - [ ] MP4 read/write
   - [ ] jpg (seems not possible yet)
 - [x] Show preview img to ensure you are editing the right image (thumbnail)
 - [ ] Support for other exif tags ("prompt", ...)
-- [ ] maybe provide cli tool, [create issue to request this function](https://github.com/Comfy-Org/ComfyUI-embedded-workflow-editor/issues/new)
+- [ ] maybe provide cli tool, [create issue to request this function](https://github.com/Comfy-Org/ComfyUI-embedded-workflowd -editor/issues/new)
   - `comfy-meta get --key=workflow img.webp > workflow.json`
   - `comfy-meta set img.webp --key=workflow --value=workflow.json`
 

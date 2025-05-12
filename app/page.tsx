@@ -8,21 +8,42 @@ import toast, { Toaster } from "react-hot-toast";
 import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
+import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo } from "./utils/exif";
 import { setPngMetadata } from "./utils/exif-png";
 import { setWebpMetadata } from "./utils/exif-webp";
+
 /**
  * @author snomiao <snomiao@gmail.com> 2024
  */
 export default function Home() {
+  useManifestPWA({
+    icons: [
+      {
+        src: "/favicon.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/favicon.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    name: "ComfyUI Embedded Workflow Editor",
+    short_name: "CUI-EWE",
+    start_url: "/",
+  });
+
   const snap = useSnapshot(persistState);
   const snapSync = useSnapshot(persistState, { sync: true });
   const [workingDir, setWorkingDir] = useState<FileSystemDirectoryHandle>();
+  
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir)),
+    async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
@@ -32,7 +53,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow",
+        "#save-workflow"
       ) as HTMLButtonElement;
       savebtn?.click();
       // editor.getAction("editor.action.formatDocument")!.run();
@@ -63,7 +84,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          }),
+          })
       )
       .filter() // filter empty
       .toArray();
@@ -276,8 +297,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                    ? "(overwrite)"
-                    : "(save as)"}
+                  ? "(overwrite)"
+                  : "(save as)"}
               </span>
             </button>
           </div>
@@ -354,7 +375,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File,
+    file: File
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -413,7 +434,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number,
+  i: number
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

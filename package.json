@@ -29,6 +29,7 @@
     "swr": "^2.2.5",
     "timeago-react": "^3.0.6",
     "uint8array-extras": "^1.4.0",
+    "use-manifest-pwa": "^1.0.0",
     "valtio": "^2.1.2"
   },
   "devDependencies": {

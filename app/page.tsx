@@ -12,6 +12,7 @@ import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo } from "./utils/exif";
+import { setFlacMetadata } from "./utils/exif-flac";
 import { setPngMetadata } from "./utils/exif-png";
 import { setWebpMetadata } from "./utils/exif-webp";
 
@@ -75,7 +76,7 @@ export default function Home() {
     if (!files.length) return;
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
-        if (e.name.match(".(png|flac|webp)$")) return true;
+        if (e.name.match(/\.(png|flac|webp)$/i)) return true;
         toast.error("Not Supported format discarded: " + e.name);
         return null;
       })
@@ -114,7 +115,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
-              Import images by (only supports *.png,*.webp now):
+              Import files (supports *.png, *.webp, *.flac):
             </label>
             &nbsp;
             <span>{workingDir ? "✅ Linked" : ""}</span>
@@ -136,10 +137,10 @@ export default function Home() {
                   await window.showOpenFilePicker({
                     types: [
                       {
-                        description: "Images",
+                        description: "Supported Files",
                         accept: {
                           "image/*": [".png", ".webp"],
-                          "flac/*": [".flac"],
+                          "audio/*": [".flac"],
                         },
                       },
                     ],
@@ -177,7 +178,7 @@ export default function Home() {
           <fieldset>
             {!tasklist.length && (
               <div>
-                Nothing editable yet, please import images with exif embedded
+                Nothing editable yet, please import files with workflow embedded
               </div>
             )}
             {tasklist.map((e, i) => {
@@ -292,7 +293,7 @@ export default function Home() {
                 await saveCurrentFile(modifiedMetadata);
               }}
             >
-              Save exif into image{" "}
+              Save workflow{" "}
               <span>
                 {!workingDir
                   ? "(download)"
@@ -353,9 +354,8 @@ export default function Home() {
     const handlers: { [key: string]: () => Uint8Array } = {
       "image/png": () => setPngMetadata(buffer, modifiedMetadata),
       "image/webp": () => setWebpMetadata(buffer, modifiedMetadata),
-      "audio/flac": () => {
-        throw new Error("Not supported file type");
-      },
+      "audio/flac": () => setFlacMetadata(buffer, modifiedMetadata),
+      "audio/x-flac": () => setFlacMetadata(buffer, modifiedMetadata),
     };
 
     const newBuffer = handlers[file.type]?.();
@@ -391,7 +391,7 @@ export default function Home() {
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
     const readed = await sf(aIter)
       .filter((e) => e.kind === "file")
-      .filter((e) => e.name.match(".(png|flac|webp)$"))
+      .filter((e) => e.name.match(/\.(png|flac|webp)$/i))
       .map(async (e) => await e.getFile())
       .map(async (e) => await readWorkflowInfo(e))
       .filter((e) => e.workflowJson)

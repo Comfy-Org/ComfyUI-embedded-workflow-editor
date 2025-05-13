@@ -124,7 +124,7 @@ export default function Home() {
             <input
               readOnly
               className="input input-bordered border-dashed input-sm w-full text-center"
-              placeholder="Way-1. Paste/Drop images here"
+              placeholder="Way-1. Paste/Drop files here (png, webp, flac)"
               onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
             <motion.button
@@ -199,10 +199,16 @@ export default function Home() {
                     onClick={() => void chooseNthFileToEdit(tasklist, i)}
                     value={e.name}
                   />{" "}
-                  <img
-                    src={e.previewUrl}
-                    className="w-[2em] h-[2em] inline object-cover"
-                  />{" "}
+                  {e.file.type.includes("flac") ? (
+                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                      <span className="text-xs">🎵</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={e.previewUrl}
+                      className="w-[2em] h-[2em] inline object-cover"
+                    />
+                  )}{" "}
                   <div className="inline-flex flex-col">
                     <label htmlFor={id}>{e.name}</label>
                     <div className="italic text-xs text-slate-500">

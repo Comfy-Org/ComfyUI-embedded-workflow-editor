@@ -1,5 +1,5 @@
 export function getFlacMetadata(
-  input: Uint8Array | ArrayBuffer
+  input: Uint8Array | ArrayBuffer,
 ): Record<string, string> {
   const buffer = new Uint8Array(input).buffer;
   const dataView = new DataView(buffer);
@@ -22,7 +22,7 @@ export function getFlacMetadata(
     if (blockType === 4) {
       // Vorbis Comment block type
       vorbisComment = parseVorbisComment(
-        new DataView(buffer, offset, blockSize)
+        new DataView(buffer, offset, blockSize),
       );
     }
 
@@ -35,7 +35,7 @@ export function getFlacMetadata(
 export function getString(
   dataView: DataView,
   offset: number,
-  length: number
+  length: number,
 ): string {
   let string = "";
   for (let i = 0; i < length; i++) {
@@ -78,7 +78,7 @@ export function parseVorbisComment(dataView: DataView): Record<string, string> {
  */
 export function setFlacMetadata(
   buffer: ArrayBuffer,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   const inputData = new Uint8Array(buffer);
   const dataView = new DataView(inputData.buffer);
@@ -118,7 +118,7 @@ export function setFlacMetadata(
     } else {
       // Copy this metadata block (header + data) to output
       outputParts.push(
-        inputData.slice(offset, offset + headerSize + blockSize)
+        inputData.slice(offset, offset + headerSize + blockSize),
       );
     }
 
@@ -131,17 +131,17 @@ export function setFlacMetadata(
   // Extract existing vendor string from the vorbis comment block if it exists
   let vendorString = "ComfyUI Embedded Workflow Editor";
   let existingMetadata: Record<string, string> = {};
-  
+
   if (vorbisCommentOffset !== -1) {
     try {
       const vorbisCommentData = new DataView(
         inputData.buffer,
         vorbisCommentOffset + 4,
-        vorbisCommentSize
+        vorbisCommentSize,
       );
       const vendorLength = vorbisCommentData.getUint32(0, true);
       vendorString = getString(vorbisCommentData, 4, vendorLength);
-      
+
       // Get existing metadata to preserve all keys
       existingMetadata = parseVorbisComment(vorbisCommentData);
       console.log("Existing metadata keys:", Object.keys(existingMetadata));
@@ -149,31 +149,31 @@ export function setFlacMetadata(
       console.error("Error parsing existing Vorbis comment:", err);
     }
   }
-  
+
   // Create a merged metadata object with existing values preserved
   const mergedMetadata: Record<string, string> = {};
-  
+
   // First copy all existing metadata
   for (const [key, value] of Object.entries(existingMetadata)) {
     mergedMetadata[key] = value;
   }
-  
+
   // Then add/override with new metadata
   for (const [key, value] of Object.entries(metadata)) {
     mergedMetadata[key] = value;
   }
-  const newVorbisComment = createVorbisComment(vendorString, mergedMetadata);  // Create the header for the Vorbis comment block
+  const newVorbisComment = createVorbisComment(vendorString, mergedMetadata); // Create the header for the Vorbis comment block
   // Make the Vorbis comment block the last metadata block
   let newVorbisHeader = new Uint8Array(4);
-  
+
   // Set blockType = 4 (Vorbis comment) with isLast = true (0x80)
   newVorbisHeader[0] = 0x84; // 0x80 (isLast) | 0x04 (Vorbis Comment)
-  
+
   // Set the block size (24-bit, big-endian)
   const blockSize = newVorbisComment.length;
-  newVorbisHeader[1] = (blockSize >> 16) & 0xFF;
-  newVorbisHeader[2] = (blockSize >> 8) & 0xFF;
-  newVorbisHeader[3] = blockSize & 0xFF;
+  newVorbisHeader[1] = (blockSize >> 16) & 0xff;
+  newVorbisHeader[2] = (blockSize >> 8) & 0xff;
+  newVorbisHeader[3] = blockSize & 0xff;
 
   // Add the Vorbis comment block to the output
   outputParts.push(newVorbisHeader);
@@ -196,7 +196,7 @@ export function setFlacMetadata(
  */
 function createVorbisComment(
   vendorString: string,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   // Calculate the size of the Vorbis comment block
   const vendorBytes = new TextEncoder().encode(vendorString);

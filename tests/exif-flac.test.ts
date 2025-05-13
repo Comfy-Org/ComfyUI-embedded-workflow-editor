@@ -68,27 +68,31 @@ test("extract workflow data when available", async () => {
 test("set and get workflow data", async () => {
   // Create a sample FLAC file
   const sampleFlacFile = await glob("./tests/flac/*.flac");
-  
+
   if (sampleFlacFile.length > 0) {
     const flacFile = Bun.file(sampleFlacFile[0]);
     const originalBuffer = await flacFile.arrayBuffer();
-    
+
     // Sample workflow data
-    const sampleWorkflow = JSON.stringify({ 
+    const sampleWorkflow = JSON.stringify({
       test: "workflow data",
-      nodes: { id1: { class_type: "TestNode" } }
+      nodes: { id1: { class_type: "TestNode" } },
     });
-    
+
     // Set the metadata
-    const modifiedBuffer = setFlacMetadata(originalBuffer, { workflow: sampleWorkflow });
-    
+    const modifiedBuffer = setFlacMetadata(originalBuffer, {
+      workflow: sampleWorkflow,
+    });
+
     // Get the metadata back
     const retrievedMetadata = getFlacMetadata(modifiedBuffer);
-    
+
     // Verify the workflow data was correctly stored and retrieved
     expect(retrievedMetadata.workflow).toBeDefined();
-    expect(JSON.stringify(JSON.parse(retrievedMetadata.workflow))).toEqual(sampleWorkflow);
-    
+    expect(JSON.stringify(JSON.parse(retrievedMetadata.workflow))).toEqual(
+      sampleWorkflow,
+    );
+
     // Verify other existing metadata is preserved
     const originalMetadata = getFlacMetadata(originalBuffer);
     for (const key of Object.keys(originalMetadata)) {

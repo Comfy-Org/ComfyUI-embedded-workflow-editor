@@ -46,7 +46,7 @@ test("extract workflow data when available", async () => {
 
         // Log available metadata keys for debugging
         console.log(
-          `Metadata keys available: ${Object.keys(metadata).join(", ")}`
+          `Metadata keys available: ${Object.keys(metadata).join(", ")}`,
         );
 
         // Only compare if workflow exists in metadata

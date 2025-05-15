@@ -44,7 +44,7 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
 export function saveWorkflowInfo(
   buffer: ArrayBuffer,
   fileType: string,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   const handlers: Record<
     string,

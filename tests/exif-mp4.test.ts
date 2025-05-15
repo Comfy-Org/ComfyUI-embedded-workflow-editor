@@ -64,13 +64,13 @@ test("set and get workflow data", async () => {
     // Verify the workflow data was correctly stored and retrieved
     expect(retrievedMetadata.workflow).toBeDefined();
     expect(JSON.stringify(JSON.parse(retrievedMetadata.workflow))).toEqual(
-      sampleWorkflow
+      sampleWorkflow,
     );
 
     // Verify other existing metadata is preserved if there was any
     const originalMetadata = getMp4Metadata(originalBuffer);
-    console.log('originalMetadata',originalMetadata);
-    console.log('retrievedMetadata',retrievedMetadata);
+    console.log("originalMetadata", originalMetadata);
+    console.log("retrievedMetadata", retrievedMetadata);
     for (const key of Object.keys(originalMetadata)) {
       if (key !== "workflow") {
         expect(retrievedMetadata[key]).toEqual(originalMetadata[key]);

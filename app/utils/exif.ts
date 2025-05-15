@@ -2,17 +2,10 @@ import { getFlacMetadata, setFlacMetadata } from "./exif-flac";
 import { getMp4Metadata, setMp4Metadata } from "./exif-mp4";
 import { getPngMetadata, setPngMetadata } from "./exif-png";
 import { getWebpMetadata, setWebpMetadata } from "./exif-webp";
-
-export async function readWorkflowInfo(
-  e: File | FileSystemFileHandle,
-): Promise<{
-  name: string;
-  workflowJson: string;
-  previewUrl: string;
-  file: File;
-  lastModified: number;
-}> {
-  if (!(e instanceof File)) e = await e.getFile();
+export function getWorkflowInfo(
+  buffer: ArrayBuffer,
+  fileType: string
+): { workflowJson: string } {
   const handlers: Record<
     string,
     (buffer: ArrayBuffer) => Record<string, string>
@@ -24,13 +17,27 @@ export async function readWorkflowInfo(
     "video/mp4": getMp4Metadata,
   };
 
-  const handler = handlers[e.type];
-  if (!handler) throw new Error(`Unsupported file type: ${e.type}`);
+  const handler = handlers[fileType];
+  if (!handler) throw new Error(`Unsupported file type: ${fileType}`);
 
-  const metadata = handler(await e.arrayBuffer());
+  const metadata = handler(buffer);
+  const workflowJson = metadata?.workflow || metadata?.Workflow;
+  return { workflowJson };
+}
+
+export async function readWorkflowInfo(
+  e: File | FileSystemFileHandle
+): Promise<{
+  name: string;
+  workflowJson: string;
+  previewUrl: string;
+  file: File;
+  lastModified: number;
+}> {
+  if (!(e instanceof File)) e = await e.getFile();
+  const { workflowJson } = getWorkflowInfo(await e.arrayBuffer(), e.type);
 
   const previewUrl = URL.createObjectURL(e);
-  const workflowJson = metadata?.workflow || metadata?.Workflow;
   return {
     name: e.name,
     workflowJson,
@@ -47,10 +54,10 @@ export async function readWorkflowInfo(
  * @param metadata The metadata to save
  * @returns The modified file buffer
  */
-export function saveWorkflowInfo(
+export function setWorkflowInfo(
   buffer: ArrayBuffer,
   fileType: string,
-  metadata: Record<string, string>,
+  metadata: Record<string, string>
 ): Uint8Array {
   const handlers: Record<
     string,

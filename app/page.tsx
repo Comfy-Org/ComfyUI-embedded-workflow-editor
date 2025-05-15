@@ -11,7 +11,7 @@ import TimeAgo from "timeago-react";
 import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
-import { readWorkflowInfo, saveWorkflowInfo } from "./utils/exif";
+import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
 
 /**
  * @author snomiao <snomiao@gmail.com> 2024
@@ -41,7 +41,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir)),
+    async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
@@ -51,7 +51,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow",
+        "#save-workflow"
       ) as HTMLButtonElement;
       savebtn?.click();
       // editor.getAction("editor.action.formatDocument")!.run();
@@ -82,7 +82,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          }),
+          })
       )
       .filter() // filter empty
       .toArray();
@@ -276,7 +276,7 @@ export default function Home() {
             <video
               src={tasklist[snap.editing_index]?.previewUrl ?? ""}
               className="h-[3em] w-[3em] inline object-contain rounded"
-              alt="Preview Editing Video"
+              // alt="Preview Editing Video"
               controls
               muted
             />
@@ -285,7 +285,7 @@ export default function Home() {
             <audio
               src={tasklist[snap.editing_index]?.previewUrl ?? ""}
               className="h-[3em] w-[10em] inline rounded"
-              alt="Preview Editing Audio"
+              // alt="Preview Editing Audio"
               controls
             />
           ) : (
@@ -326,8 +326,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                    ? "(overwrite)"
-                    : "(save as)"}
+                  ? "(overwrite)"
+                  : "(save as)"}
               </span>
             </button>
           </div>
@@ -382,7 +382,7 @@ export default function Home() {
     const buffer = await file.arrayBuffer();
 
     try {
-      const newBuffer = saveWorkflowInfo(buffer, file.type, modifiedMetadata);
+      const newBuffer = setWorkflowInfo(buffer, file.type, modifiedMetadata);
       const fileToSave = new File([newBuffer], filename, { type: file.type });
 
       if (workingDir) {
@@ -391,7 +391,9 @@ export default function Home() {
         download(fileToSave);
       }
     } catch (error) {
-      const msg = "Error processing file: " + error.message;
+      const msg = `Error processing file: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
       alert(msg);
       throw error;
     }
@@ -399,7 +401,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File,
+    file: File
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -458,7 +460,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number,
+  i: number
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

@@ -5,8 +5,11 @@
 
 /**
  * Get metadata from an MP4 file
- * @param input The MP4 file buffer
- * @returns Object containing extracted metadata
+ * Extracts all metadata fields including workflow JSON if present
+ * 
+ * 
+ * @param input The MP4 file buffer as Uint8Array or ArrayBuffer
+ * @returns Object containing extracted metadata with keys as field names and values as strings
  */
 export function getMp4Metadata(
   input: Uint8Array | ArrayBuffer
@@ -15,21 +18,14 @@ export function getMp4Metadata(
   const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   const metadata: Record<string, string> = {};
 
-  console.log('MP4 Buffer length:', buffer.byteLength);
-
   try {
     // Verify this is an MP4 file by checking for the 'ftyp' box at the beginning
     if (!hasFtypBox(dataView)) {
-      console.error('Not a valid MP4 file - missing ftyp signature');
       throw new Error("Not a valid MP4 file");
     }
 
-    console.log('Valid MP4 file with ftyp signature detected');
-
-    // Parse the MP4 boxes to find workflow metadata
+    // Parse the MP4 boxes to find metadata
     parseBoxes(dataView, 0, dataView.byteLength, metadata);
-
-    console.log('Metadata parsing completed, keys found:', Object.keys(metadata));
     return metadata;
   } catch (error) {
     console.error("Error extracting MP4 metadata:", error);
@@ -39,9 +35,12 @@ export function getMp4Metadata(
 
 /**
  * Set metadata in an MP4 file
+ * Injects or updates metadata in an MP4 file while preserving existing metadata fields
+ * 
  * @param buffer The MP4 file buffer
- * @param metadata The metadata to set
- * @returns The modified MP4 file buffer
+ * @param metadata The metadata to set or update (existing fields with the same keys will be updated)
+ * @returns The modified MP4 file buffer with updated metadata
+ * @throws Error if the input is not a valid MP4 file
  */
 export function setMp4Metadata(
   buffer: ArrayBuffer,
@@ -66,6 +65,8 @@ export function setMp4Metadata(
 
 /**
  * Check if the file has an 'ftyp' box at the beginning (required for MP4 files)
+ * @param dataView DataView of the buffer to check
+ * @returns boolean indicating if the 'ftyp' signature is present
  */
 function hasFtypBox(dataView: DataView): boolean {
   // MP4 files start with a box that's at least 8 bytes
@@ -78,13 +79,14 @@ function hasFtypBox(dataView: DataView): boolean {
   
   // Convert to string and check
   const typeStr = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
-  console.log('Type string in ftyp check:', typeStr);
-  
   return typeStr === 'ftyp';
 }
 
 /**
  * Parse MP4 boxes and extract metadata
+ * MP4 files are organized in a hierarchical structure of 'boxes' (also called 'atoms')
+ * Each box has a size (4 bytes) and type (4 bytes) followed by its content
+ * 
  * @param dataView DataView of the MP4 buffer
  * @param start Starting offset in the buffer
  * @param end Ending offset in the buffer
@@ -97,12 +99,10 @@ function parseBoxes(
   metadata: Record<string, string>
 ) {
   let offset = start;
-  console.log(`Parsing boxes from ${start} to ${end}`);
 
   while (offset < end) {
     // Check if we have enough data for a box header
     if (offset + 8 > end) {
-      console.log('Not enough data for box header, stopping');
       break;
     }
 
@@ -110,56 +110,45 @@ function parseBoxes(
     const size = dataView.getUint32(offset);
     const typeBytes = new Uint8Array(dataView.buffer, dataView.byteOffset + offset + 4, 4);
     const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3]);
-    
-    console.log(`Found box: ${type} at offset ${offset}, size ${size}`);
 
     // Handle special case of large size (64-bit size field)
     let boxSize = size;
     let headerSize = 8;
     if (size === 1 && offset + 16 <= end) {
       // Read 64-bit size
-      const highBits = dataView.getUint32(offset + 8);
       const lowBits = dataView.getUint32(offset + 12);
-      
       // For simplicity, we'll only use the low bits, assuming high bits are 0
       // This works for files under 4GB
       boxSize = lowBits;
       headerSize = 16;
-      console.log(`Large box size: ${boxSize}, headerSize: ${headerSize}`);
     }
 
     if (boxSize === 0) {
       // Box extends to the end of file
       boxSize = end - offset;
-      console.log(`Box extends to end of file, new size: ${boxSize}`);
     }
 
     if (offset + boxSize > end) {
       // Box size extends beyond the buffer
-      console.log(`Box size (${boxSize}) extends beyond buffer end (${end}), stopping`);
       break;
     }
 
     // Process different box types
     if (type === 'moov') {
       // 'moov' is a container box, recursively parse its contents
-      console.log(`Recursively parsing moov box contents from ${offset + headerSize} to ${offset + boxSize}`);
       parseBoxes(dataView, offset + headerSize, offset + boxSize, metadata);
     } else if (type === 'udta') {
       // 'udta' is a user data box, usually inside 'moov'
-      console.log(`Parsing user data box at ${offset + headerSize} to ${offset + boxSize}`);
       parseUserDataBox(dataView, offset + headerSize, offset + boxSize, metadata);
     } else if (type === 'meta') {
       // 'meta' box contains metadata
       // It has a 4-byte version/flags field after the header
       if (offset + headerSize + 4 <= end) {
-        console.log(`Parsing meta box at ${offset + headerSize + 4} to ${offset + boxSize}`);
         parseMetaBox(dataView, offset + headerSize + 4, offset + boxSize, metadata);
       }
     } else if (type === 'uuid') {
       // Custom box with 16-byte UUID after the header
       if (offset + headerSize + 16 <= end) {
-        console.log(`Parsing uuid box at ${offset + headerSize} to ${offset + boxSize}`);
         parseUuidBox(dataView, offset + headerSize, offset + boxSize, metadata);
       }
     }
@@ -171,6 +160,15 @@ function parseBoxes(
 
 /**
  * Parse a 'udta' (user data) box for metadata
+ * The 'udta' box can contain various types of user data including:
+ * - Custom 'wflo' box with workflow data 
+ * - Standard iTunes-style metadata atoms (e.g., '©nam')
+ * - A 'meta' box with more structured metadata
+ * 
+ * @param dataView DataView of the MP4 buffer
+ * @param start Starting offset of the udta box content
+ * @param end Ending offset of the udta box 
+ * @param metadata Object to populate with extracted metadata
  */
 function parseUserDataBox(
   dataView: DataView,
@@ -179,28 +177,22 @@ function parseUserDataBox(
   metadata: Record<string, string>
 ) {
   let offset = start;
-  console.log(`Parsing user data box from ${start} to ${end}`);
 
   while (offset < end) {
     if (offset + 8 > end) {
-      console.log('Not enough data for box header in user data box, stopping');
       break;
     }
 
     const size = dataView.getUint32(offset);
     const typeBytes = new Uint8Array(dataView.buffer, dataView.byteOffset + offset + 4, 4);
     const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3]);
-    
-    console.log(`Found user data atom: ${type} at offset ${offset}, size ${size}`);
 
     let boxSize = size;
     if (boxSize === 0) {
       boxSize = end - offset;
-      console.log(`Box extends to end of user data, new size: ${boxSize}`);
     }
 
     if (offset + boxSize > end) {
-      console.log(`Box size (${boxSize}) extends beyond user data end (${end}), stopping`);
       break;
     }
 
@@ -210,21 +202,14 @@ function parseUserDataBox(
       try {
         const dataOffset = offset + 12;
         const dataLength = boxSize - 12;
-        console.log(`Found workflow data at offset ${dataOffset}, length ${dataLength}`);
         
         const workflowData = new Uint8Array(dataView.buffer, dataView.byteOffset + dataOffset, dataLength);
         metadata.workflow = new TextDecoder().decode(workflowData).trim();
-        console.log(`Extracted workflow data of length ${metadata.workflow.length}`);
-        
-        if (metadata.workflow) {
-          console.log(`Workflow preview: ${metadata.workflow.substring(0, 100)}...`);
-        }
       } catch (e) {
         console.error("Error parsing workflow data:", e);
       }
     } else if (type === 'meta' && offset + 12 < end) {
       // Found a meta box inside udta - parse it
-      console.log(`Found meta box in udta at offset ${offset}, parsing it directly`);
       // Meta box has 4-byte version/flags after header
       parseMetaBox(dataView, offset + 12, offset + boxSize, metadata);
     }
@@ -236,12 +221,9 @@ function parseUserDataBox(
         const dataOffset = offset + 12; // Skip header and version/flags
         const dataLength = boxSize - 12;
         if (dataLength > 0) {
-          console.log(`Found standard metadata atom ${type} at offset ${dataOffset}, length ${dataLength}`);
-          
           const textData = new Uint8Array(dataView.buffer, dataView.byteOffset + dataOffset, dataLength);
           const key = type.substring(1); // Remove © prefix
           metadata[key] = new TextDecoder().decode(textData).trim();
-          console.log(`Extracted metadata: ${key} = ${metadata[key]}`);
         }
       } catch (e) {
         console.error(`Error parsing metadata atom ${type}:`, e);
@@ -254,6 +236,15 @@ function parseUserDataBox(
 
 /**
  * Parse a 'meta' box for metadata
+ * This function extracts metadata from iTunes-style metadata format which consists of:
+ * - 'hdlr' box (handler, typically 'mdta')
+ * - 'keys' box (defines metadata key names)
+ * - 'ilst' box (contains the actual metadata values)
+ * 
+ * @param dataView DataView of the MP4 buffer
+ * @param start Starting offset of the meta box content (after version/flags)
+ * @param end Ending offset of the meta box
+ * @param metadata Object to populate with extracted metadata
  */
 function parseMetaBox(
   dataView: DataView,
@@ -262,50 +253,30 @@ function parseMetaBox(
   metadata: Record<string, string>
 ) {
   let offset = start;
-  console.log(`Parsing meta box from ${start} to ${end}`);
-
-  // Extract metadata from 'meta' box which typically has:
-  // 1. 'hdlr' box
-  // 2. 'keys' box (defines metadata key names)
-  // 3. 'ilst' box (contains the actual metadata values)
-
-  // First, find the 'keys' box to map indices to key names
-  let keysOffset = 0;
-  let ilstOffset = 0;
   let keysMap: Record<number, string> = {};
+  let ilstOffset = 0;
 
+  // Step 1: First scan to locate 'keys' and 'ilst' boxes
   while (offset < end) {
-    if (offset + 8 > end) {
-      console.log('Not enough data for box header in meta box, stopping');
-      break;
-    }
+    if (offset + 8 > end) break;
 
     const size = dataView.getUint32(offset);
     const typeBytes = new Uint8Array(dataView.buffer, dataView.byteOffset + offset + 4, 4);
     const type = String.fromCharCode(typeBytes[0], typeBytes[1], typeBytes[2], typeBytes[3]);
     
-    console.log(`Found meta inner box: ${type} at offset ${offset}, size ${size}`);
-
     let boxSize = size;
     if (boxSize === 0) {
       boxSize = end - offset;
-      console.log(`Box extends to end of meta box, new size: ${boxSize}`);
     }
 
-    if (offset + boxSize > end) {
-      console.log(`Box size (${boxSize}) extends beyond meta box end (${end}), stopping`);
-      break;
-    }
+    if (offset + boxSize > end) break;
 
+    // Process the keys box to build a map of key indices to names
     if (type === 'keys') {
-      // Parse the 'keys' box which defines metadata key names
-      keysOffset = offset;
-      
       try {
-        // Keys box starts with version/flags (4 bytes) + entry count (4 bytes)
+        // Keys box has: version/flags (4) + entry count (4) + key entries
         if (offset + 16 <= end) {
           const entryCount = dataView.getUint32(offset + 12);
-          console.log(`Keys box has ${entryCount} entries`);
           
           // Parse each key entry
           let keyOffset = offset + 16;
@@ -313,9 +284,8 @@ function parseMetaBox(
             if (keyOffset + 8 > offset + boxSize) break;
             
             const keySize = dataView.getUint32(keyOffset);
-            // Skip namespace (4 bytes)
             
-            // Extract key name (string)
+            // Extract key name (string) - follows namespace (4)
             if (keySize > 8 && keyOffset + keySize <= offset + boxSize) {
               const keyValueBytes = new Uint8Array(
                 dataView.buffer, 
@@ -324,14 +294,8 @@ function parseMetaBox(
               );
               const keyName = new TextDecoder().decode(keyValueBytes).trim();
               
-              // Store in our map (1-based index in file, but we use 0-based for array)
+              // Store in our map (1-based index in file)
               keysMap[i + 1] = keyName;
-              console.log(`Found key ${i + 1}: ${keyName}`);
-              
-              // Specifically look for workflow key
-              if (keyName === 'workflow') {
-                console.log(`Found workflow key at index ${i + 1}`);
-              }
             }
             
             keyOffset += keySize;
@@ -341,33 +305,26 @@ function parseMetaBox(
         console.error('Error parsing keys box:', e);
       }
     } else if (type === 'ilst') {
-      // Parse the 'ilst' box which contains the actual metadata values
       ilstOffset = offset;
     }
     
     offset += boxSize;
   }
   
-  // Now that we have mapped the keys, parse the 'ilst' box for values
+  // Step 2: If we found both keys and ilst boxes, extract the values
   if (ilstOffset && Object.keys(keysMap).length > 0) {
     offset = ilstOffset + 8; // Skip ilst header
     const ilstSize = dataView.getUint32(ilstOffset);
     const ilstEnd = ilstOffset + ilstSize;
     
-    console.log(`Parsing ilst box from ${offset} to ${ilstEnd}`);
-    
-    // Items in ilst are indexed by their key index
+    // Items in ilst are indexed by position corresponding to key index
     let itemCount = 0;
     
     while (offset < ilstEnd) {
       if (offset + 8 > ilstEnd) break;
       
       const itemSize = dataView.getUint32(offset);
-      // In iTunes metadata, item name is actually its index (as a 4-byte integer)
-      // but the bytes are often blank but position in the list corresponds to key index
-      itemCount++;
-      
-      console.log(`Item ${itemCount} at offset ${offset}, size ${itemSize}`);
+      itemCount++; // Count the items to map to key indices
       
       // Look for a 'data' box inside this item
       if (offset + 8 < offset + itemSize) {
@@ -385,11 +342,10 @@ function parseMetaBox(
           dataBoxTypeBytes[3]
         );
         
-        // Check if we have a valid 'data' box with the format we expect
+        // Check if we have a valid 'data' box with correct format
         if (dataBoxType === 'data' && dataOffset + 16 <= offset + itemSize) {
           // Data box format: size (4) + 'data' (4) + dataType (4) + locale (4) + actual data
           const dataType = dataView.getUint32(dataOffset + 8);
-          // Skip locale at dataOffset + 12
           
           // For text data (type 1), extract it
           if (dataType === 1) {
@@ -404,23 +360,10 @@ function parseMetaBox(
               );
               const textValue = new TextDecoder().decode(textBytes).trim();
               
-              // Get the key name for this item
+              // Get the key name for this item and store the metadata
               const keyName = keysMap[itemCount];
               if (keyName) {
-                console.log(`Found metadata: ${keyName} = ${textValue.substring(0, 50)}${textValue.length > 50 ? '...' : ''}`);
                 metadata[keyName] = textValue;
-                
-                // If this is our workflow data, log more details
-                if (keyName === 'workflow') {
-                  console.log(`Extracted workflow data of length ${textValue.length}`);
-                  try {
-                    // Try to parse as JSON to validate it
-                    JSON.parse(textValue);
-                    console.log(`Valid workflow JSON extracted`);
-                  } catch (e) {
-                    console.error('Extracted workflow data is not valid JSON');
-                  }
-                }
               }
             }
           }
@@ -434,6 +377,13 @@ function parseMetaBox(
 
 /**
  * Parse a 'uuid' box for metadata
+ * A 'uuid' box can be used as a custom container for workflow data
+ * It contains a 16-byte UUID followed by custom data
+ * 
+ * @param dataView DataView of the MP4 buffer
+ * @param start Starting offset of the uuid box content (after header)
+ * @param end Ending offset of the uuid box
+ * @param metadata Object to populate with extracted metadata
  */
 function parseUuidBox(
   dataView: DataView,
@@ -476,6 +426,13 @@ function parseUuidBox(
 
 /**
  * Inject metadata into the MP4 file
+ * This function locates the 'moov' box and adds/updates metadata within it
+ * 
+ * @param inputData The input MP4 file data
+ * @param dataView DataView of the input MP4 buffer
+ * @param newMetadata Metadata to add or update
+ * @returns New MP4 file data with updated metadata
+ * @throws Error if no 'moov' box is found
  */
 function injectMetadata(
   inputData: Uint8Array,
@@ -513,6 +470,11 @@ function injectMetadata(
 
 /**
  * Find a box of the specified type in the MP4 file
+ * @param dataView DataView of the MP4 buffer to search
+ * @param start Starting offset for the search
+ * @param end Ending offset for the search
+ * @param targetType Four-character type of box to find (e.g., 'moov', 'udta')
+ * @returns Object with offset and size of the found box, or null if not found
  */
 function findBox(
   dataView: DataView,
@@ -562,6 +524,13 @@ function findBox(
 
 /**
  * Inject metadata into the moov box
+ * This function modifies a moov box to include metadata by either:
+ * 1. Updating an existing 'udta' box with new metadata while preserving existing metadata
+ * 2. Creating a new 'udta' box if one doesn't exist
+ * 
+ * @param moovData The original moov box data
+ * @param newMetadata The metadata to add or update
+ * @returns The modified moov box data
  */
 function injectMetadataIntoMoov(
   moovData: Uint8Array,
@@ -787,6 +756,12 @@ function injectMetadataIntoMoov(
 
 /**
  * Create a udta box with the specified metadata
+ * This function creates a properly formatted 'udta' box containing:
+ * 1. A custom 'wflo' box for workflow data (if present)
+ * 2. An iTunes-style metadata structure with 'meta', 'hdlr', 'keys', and 'ilst' boxes
+ * 
+ * @param metadata The metadata to include in the udta box
+ * @returns A new Uint8Array containing the complete udta box
  */
 function createUdtaBox(metadata: Record<string, string>): Uint8Array {
   // We need to create a properly formatted metadata box structure for iTunes-style metadata
@@ -928,6 +903,8 @@ function createUdtaBox(metadata: Record<string, string>): Uint8Array {
 
 /**
  * Concatenate multiple Uint8Arrays into a single array
+ * @param arrays Array of Uint8Arrays to concatenate
+ * @returns A new Uint8Array containing all input arrays concatenated in sequence
  */
 function concatenateUint8Arrays(arrays: Uint8Array[]): Uint8Array {
   // Calculate the total length

@@ -4,7 +4,7 @@ import { getPngMetadata, setPngMetadata } from "./exif-png";
 import { getWebpMetadata, setWebpMetadata } from "./exif-webp";
 
 export async function readWorkflowInfo(
-  e: File | FileSystemFileHandle
+  e: File | FileSystemFileHandle,
 ): Promise<{
   name: string;
   workflowJson: string;
@@ -50,7 +50,7 @@ export async function readWorkflowInfo(
 export function saveWorkflowInfo(
   buffer: ArrayBuffer,
   fileType: string,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   const handlers: Record<
     string,

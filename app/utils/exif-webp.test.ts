@@ -67,10 +67,10 @@ describe("WebP EXIF metadata", () => {
 
   it("should handle files with copyright field metadata, hunyuan3d.webp", async () => {
     const webp = Bun.file(
-      "./tests/malformed/hunyuan3d-non-multiview-train.webp",
+      "./tests/webp/malformed/hunyuan3d-non-multiview-train.webp",
     );
     const json = Bun.file(
-      "./tests/malformed/hunyuan3d-non-multiview-train.workflow.json",
+      "./tests/webp/malformed/hunyuan3d-non-multiview-train.workflow.json",
     );
 
     const gotMetadata = getWebpMetadata(await webp.arrayBuffer());
@@ -88,8 +88,8 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle files with copyright field metadata, robot.webp", async () => {
-    const webp = Bun.file("./tests/malformed/robot.webp");
-    const json = Bun.file("./tests/malformed/robot.workflow.json");
+    const webp = Bun.file("./tests/webp/malformed/robot.webp");
+    const json = Bun.file("./tests/webp/malformed/robot.workflow.json");
 
     const gotMetadata = getWebpMetadata(await webp.arrayBuffer());
     expect(gotMetadata.workflow).toBe(JSON.stringify(await json.json()));

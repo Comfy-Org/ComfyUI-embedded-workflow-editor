@@ -3,7 +3,15 @@ import { getMp4Metadata, setMp4Metadata } from "./exif-mp4";
 import { getPngMetadata, setPngMetadata } from "./exif-png";
 import { getWebpMetadata, setWebpMetadata } from "./exif-webp";
 
-export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
+export async function readWorkflowInfo(
+  e: File | FileSystemFileHandle
+): Promise<{
+  name: string;
+  workflowJson: string;
+  previewUrl: string;
+  file: File;
+  lastModified: number;
+}> {
   if (!(e instanceof File)) e = await e.getFile();
   const handlers: Record<
     string,
@@ -17,11 +25,9 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
   };
 
   const handler = handlers[e.type];
-  if (!handler) {
-    console.warn(`No handler for file type: ${e.type}`);
-    return null;
-  }
-  const metadata = handler?.(await e.arrayBuffer());
+  if (!handler) throw new Error(`Unsupported file type: ${e.type}`);
+
+  const metadata = handler(await e.arrayBuffer());
 
   const previewUrl = URL.createObjectURL(e);
   const workflowJson = metadata?.workflow || metadata?.Workflow;
@@ -44,7 +50,7 @@ export async function readWorkflowInfo(e: File | FileSystemFileHandle) {
 export function saveWorkflowInfo(
   buffer: ArrayBuffer,
   fileType: string,
-  metadata: Record<string, string>,
+  metadata: Record<string, string>
 ): Uint8Array {
   const handlers: Record<
     string,

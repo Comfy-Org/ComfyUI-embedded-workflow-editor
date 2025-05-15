@@ -2,7 +2,7 @@ import { getPngMetadata, setPngMetadata } from "@/app/utils/exif-png";
 import { glob } from "glob";
 
 it("extract png workflow", async () => {
-  const pngs = await glob("./tests/ComfyUI_*.png");
+  const pngs = await glob("./tests/png/ComfyUI_*.png");
   expect(pngs.length).toBeGreaterThanOrEqual(1);
 
   for await (const filename of pngs) {
@@ -18,7 +18,7 @@ it("extract png workflow", async () => {
 });
 
 it("set png workflow", async () => {
-  const pngs = await glob("./tests/ComfyUI_*.png");
+  const pngs = await glob("./tests/png/ComfyUI_*.png");
   expect(pngs.length).toBeGreaterThanOrEqual(1);
 
   for await (const filename of pngs) {
@@ -39,7 +39,7 @@ it("set png workflow", async () => {
 });
 
 it("extract blank png workflow", async () => {
-  const pngs = await glob("./tests/Blank_*.png");
+  const pngs = await glob("./tests/png/Blank_*.png");
   expect(pngs.length).toBeGreaterThanOrEqual(1);
 
   for await (const filename of pngs) {
@@ -50,7 +50,7 @@ it("extract blank png workflow", async () => {
 });
 
 it("set blank png workflow", async () => {
-  const pngs = await glob("./tests/Blank_*.png");
+  const pngs = await glob("./tests/png/Blank_*.png");
   expect(pngs.length).toBeGreaterThanOrEqual(1);
 
   for await (const filename of pngs) {

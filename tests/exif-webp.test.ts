@@ -22,7 +22,7 @@ describe("WebP EXIF metadata", () => {
     }
   });
   describe("It should keep original hash if nothing has changed", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     for await (const file of files) {
       const webp = Bun.file(file);
       const originalBuffer = await webp.arrayBuffer();
@@ -45,7 +45,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle files with no existing metadata", async () => {
-    const files = await glob("./tests/empty-workflow.webp");
+    const files = await glob("./tests/webp/empty-workflow.webp");
     expect(files.length).toEqual(1);
     const webp = Bun.file(files[0]);
 
@@ -106,7 +106,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should preserve workflow key format for ComfyUI compatibility", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     expect(files.length).toBeGreaterThanOrEqual(1);
     const webp = Bun.file(files[0]);
 
@@ -125,7 +125,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle multiple save operations", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     expect(files.length).toBeGreaterThanOrEqual(1);
     const webp = Bun.file(files[0]);
 
@@ -153,7 +153,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle empty workflow values", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     const webp = Bun.file(files[0]);
 
     const emptyWorkflow = "{}";
@@ -166,7 +166,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle single metadata field", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     const webp = Bun.file(files[0]);
 
     // Add workflow metadata
@@ -181,7 +181,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle malformed workflow JSON gracefully", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     const webp = Bun.file(files[0]);
 
     const malformedWorkflow = '{"test": broken json';
@@ -195,7 +195,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should handle large workflow data", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     const webp = Bun.file(files[0]);
 
     // Create a large workflow object
@@ -214,7 +214,7 @@ describe("WebP EXIF metadata", () => {
   });
 
   it("should maintain byte alignment in EXIF chunk", async () => {
-    const files = await glob("./tests/*.webp");
+    const files = await glob("./tests/webp/*.webp");
     const webp = Bun.file(files[0]);
 
     const workflow = '{"test":"data"}';

@@ -16,9 +16,8 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
 - [x] Support for more image formats (png, jpg, webp, etc)
   - [x] png read/write
   - [x] webp read/write
-  - [x] Flac read
-  - [ ] Flac write
-  - [ ] MP4 read/write
+  - [x] Flac read/write
+  - [x] MP4 read/write
   - [ ] jpg (seems not possible yet)
 - [x] Show preview img to ensure you are editing the right image (thumbnail)
 - [ ] Support for other exif tags ("prompt", ...)

@@ -1,0 +1,125 @@
+{
+  "id": "56bd4347-9347-49da-a167-3db05d3bcc28",
+  "revision": 0,
+  "last_node_id": 21,
+  "last_link_id": 16,
+  "nodes": [
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [740.298828125, 582.8697509765625],
+      "size": [270, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [8] },
+        { "name": "MASK", "type": "MASK", "links": null }
+      ],
+      "properties": { "Node name for S&R": "LoadImage" },
+      "widgets_values": [
+        "madprincesheo_A_peach-colored_dahlia_flower_with_a_green_center_8d2506df-bfea-4b80-b5c2-7240951bd1c9.png",
+        "image"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "SaveVideo",
+      "pos": [1473.978515625, 594.9249877929688],
+      "size": [374, 579.8331909179688],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [{ "name": "video", "type": "VIDEO", "link": 6 }],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveVideo" },
+      "widgets_values": ["Luma/vides/img2vid", "auto", "auto"]
+    },
+    {
+      "id": 20,
+      "type": "Note",
+      "pos": [353.849365234375, 566.2276000976562],
+      "size": [292.8799743652344, 275.8305358886719],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "A peach-colored dahlia flower with a green center, in the middle of ona a black background, photographed from a very low angle, shot on a Hasselblad H6D-400c with a Zeiss Milvus 25mm f/8 lens, highly detailed and realistic, in the style of National Geographic photography."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 15,
+      "type": "PrimitiveNode",
+      "pos": [1065.44482421875, 916.0889282226562],
+      "size": [328.9931945800781, 197.83985900878906],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "widget": { "name": "prompt" },
+          "links": [13]
+        }
+      ],
+      "title": "Prompt",
+      "properties": { "Run widget replace on values": false },
+      "widgets_values": [
+        "A peach-colored dahlia flower with a green center, in the middle of ona a black background, photographed from a very low angle, shot on a Hasselblad H6D-400c with a Zeiss Milvus 25mm f/8 lens, highly detailed and realistic, in the style of National Geographic photography."
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LumaImageToVideoNode",
+      "pos": [1039.558349609375, 589.55419921875],
+      "size": [400, 272],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        { "name": "first_image", "shape": 7, "type": "IMAGE", "link": 8 },
+        { "name": "last_image", "shape": 7, "type": "IMAGE", "link": null },
+        {
+          "name": "luma_concepts",
+          "shape": 7,
+          "type": "LUMA_CONCEPTS",
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": { "name": "prompt" },
+          "link": 13
+        }
+      ],
+      "outputs": [{ "name": "VIDEO", "type": "VIDEO", "links": [6] }],
+      "properties": { "Node name for S&R": "LumaImageToVideoNode" },
+      "widgets_values": [
+        "A peach-colored dahlia flower with a green center, in the middle of ona a black background, photographed from a very low angle, shot on a Hasselblad H6D-400c with a Zeiss Milvus 25mm f/8 lens, highly detailed and realistic, in the style of National Geographic photography.",
+        "ray-2",
+        "720p",
+        "5s",
+        false,
+        933554885259762,
+        "randomize"
+      ]
+    }
+  ],
+  "links": [
+    [6, 5, 0, 8, 0, "VIDEO"],
+    [8, 9, 0, 5, 0, "IMAGE"],
+    [13, 15, 0, 5, 3, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": { "frontendVersion": "1.18.4" },
+  "version": 0.4
+}

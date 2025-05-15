@@ -11,10 +11,7 @@ import TimeAgo from "timeago-react";
 import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
-import { readWorkflowInfo } from "./utils/exif";
-import { setFlacMetadata } from "./utils/exif-flac";
-import { setPngMetadata } from "./utils/exif-png";
-import { setWebpMetadata } from "./utils/exif-webp";
+import { readWorkflowInfo, saveWorkflowInfo } from "./utils/exif";
 
 /**
  * @author snomiao <snomiao@gmail.com> 2024
@@ -44,7 +41,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir)),
+    async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
@@ -54,7 +51,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow",
+        "#save-workflow"
       ) as HTMLButtonElement;
       savebtn?.click();
       // editor.getAction("editor.action.formatDocument")!.run();
@@ -76,7 +73,7 @@ export default function Home() {
     if (!files.length) return;
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
-        if (e.name.match(/\.(png|flac|webp)$/i)) return true;
+        if (e.name.match(/\.(png|flac|webp|mp4)$/i)) return true;
         toast.error("Not Supported format discarded: " + e.name);
         return null;
       })
@@ -85,7 +82,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          }),
+          })
       )
       .filter() // filter empty
       .toArray();
@@ -115,7 +112,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
           <div className="">
             <label className="font-semibold">
-              Import files (supports *.png, *.webp, *.flac):
+              Import files (supports *.png, *.webp, *.flac, *.mp4):
             </label>
             &nbsp;
             <span>{workingDir ? "✅ Linked" : ""}</span>
@@ -124,7 +121,7 @@ export default function Home() {
             <input
               readOnly
               className="input input-bordered border-dashed input-sm w-full text-center"
-              placeholder="Way-1. Paste/Drop files here (png, webp, flac)"
+              placeholder="Way-1. Paste/Drop files here (png, webp, flac, mp4)"
               onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
             <motion.button
@@ -141,6 +138,7 @@ export default function Home() {
                         accept: {
                           "image/*": [".png", ".webp"],
                           "audio/*": [".flac"],
+                          "video/*": [".mp4"],
                         },
                       },
                     ],
@@ -202,6 +200,11 @@ export default function Home() {
                   {e.file.type.includes("flac") ? (
                     <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
                       <span className="text-xs">🎵</span>
+                    </div>
+                  ) : e.file.type.includes("mp4") ||
+                    e.file.type.includes("video") ? (
+                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                      <span className="text-xs">🎬</span>
                     </div>
                   ) : (
                     <img
@@ -268,11 +271,30 @@ export default function Home() {
       >
         <div className="flex flex-row items-center gap-4 p-2">
           <div className="flex flex-col gap-1"></div>
-          <img
-            src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-            className="h-[3em] w-[3em] inline object-contain rounded"
-            alt="Preview Editing Image"
-          />
+          {tasklist[snap.editing_index]?.file.type.includes("mp4") ||
+          tasklist[snap.editing_index]?.file.type.includes("video") ? (
+            <video
+              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
+              className="h-[3em] w-[3em] inline object-contain rounded"
+              alt="Preview Editing Video"
+              controls
+              muted
+            />
+          ) : tasklist[snap.editing_index]?.file.type.includes("flac") ||
+            tasklist[snap.editing_index]?.file.type.includes("audio") ? (
+            <audio
+              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
+              className="h-[3em] w-[10em] inline rounded"
+              alt="Preview Editing Audio"
+              controls
+            />
+          ) : (
+            <img
+              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
+              className="h-[3em] w-[3em] inline object-contain rounded"
+              alt="Preview Editing Image"
+            />
+          )}
           <div>
             <input
               type="text"
@@ -304,8 +326,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                    ? "(overwrite)"
-                    : "(save as)"}
+                  ? "(overwrite)"
+                  : "(save as)"}
               </span>
             </button>
           </div>
@@ -329,7 +351,7 @@ export default function Home() {
             persistState.editing_workflow_json = content;
             if (
               snap.autosave &&
-              content !== tasklist[snap.editing_index].workflowJson
+              content !== tasklist[snap.editing_index]?.workflowJson
             ) {
               saveCurrentFile({ workflow: tryMinifyJson(content) });
             }
@@ -352,36 +374,32 @@ export default function Home() {
   );
 
   async function saveCurrentFile(modifiedMetadata: { workflow: string }) {
-    const file = tasklist[persistState.editing_index].file;
-    const filename = persistState.editing_filename || file.name;
-
+    const file = tasklist[persistState.editing_index]?.file;
     if (!file) return;
+
+    const filename = persistState.editing_filename || file.name;
+    
     const buffer = await file.arrayBuffer();
-    const handlers: { [key: string]: () => Uint8Array } = {
-      "image/png": () => setPngMetadata(buffer, modifiedMetadata),
-      "image/webp": () => setWebpMetadata(buffer, modifiedMetadata),
-      "audio/flac": () => setFlacMetadata(buffer, modifiedMetadata),
-      "audio/x-flac": () => setFlacMetadata(buffer, modifiedMetadata),
-    };
 
-    const newBuffer = handlers[file.type]?.();
-    if (!newBuffer) {
-      const msg = "Not supported file type";
+    try {
+      const newBuffer = saveWorkflowInfo(buffer, file.type, modifiedMetadata);
+      const fileToSave = new File([newBuffer], filename, { type: file.type });
+
+      if (workingDir) {
+        await writeToWorkingDir(workingDir, fileToSave);
+      } else {
+        download(fileToSave);
+      }
+    } catch (error) {
+      const msg = "Error processing file: " + error.message;
       alert(msg);
-      throw new Error(msg);
-    }
-
-    const fileToSave = new File([newBuffer], filename, { type: file.type });
-    if (workingDir) {
-      await writeToWorkingDir(workingDir, fileToSave);
-    } else {
-      download(fileToSave);
+      throw error;
     }
   }
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File,
+    file: File
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -397,7 +415,7 @@ export default function Home() {
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
     const readed = await sf(aIter)
       .filter((e) => e.kind === "file")
-      .filter((e) => e.name.match(/\.(png|flac|webp)$/i))
+      .filter((e) => e.name.match(/\.(png|flac|webp|mp4)$/i))
       .map(async (e) => await e.getFile())
       .map(async (e) => await readWorkflowInfo(e))
       .filter((e) => e.workflowJson)
@@ -440,7 +458,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number,
+  i: number
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

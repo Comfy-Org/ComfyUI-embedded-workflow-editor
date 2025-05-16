@@ -3,7 +3,7 @@ import Editor, { useMonaco } from "@monaco-editor/react";
 import clsx from "clsx";
 import md5 from "md5";
 import { motion } from "motion/react";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import sflow, { sf } from "sflow";
@@ -18,9 +18,6 @@ import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
  * @author snomiao <snomiao@gmail.com> 2024
  */
 export default function Home() {
-  // const searchParams = useSearchParams();
-  const query = useRouter().query;
-
   useManifestPWA({
     icons: [
       {
@@ -46,7 +43,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir)),
+    async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
@@ -56,7 +53,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow",
+        "#save-workflow"
       ) as HTMLButtonElement;
       savebtn?.click();
     });
@@ -66,7 +63,8 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
-  const urlParam = query["url"] as string | string[] | undefined;
+  const searchParams = useSearchParams();
+  const urlParam = searchParams.get("url") as string | string[] | undefined;
   useEffect(() => {
     if (urlParam) {
       if (Array.isArray(urlParam)) {
@@ -85,7 +83,7 @@ export default function Home() {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch file from URL: ${response.statusText}`,
+          `Failed to fetch file from URL: ${response.statusText}`
         );
       }
 
@@ -93,7 +91,7 @@ export default function Home() {
       const extension = url.split(".").pop()?.toLowerCase() || "";
 
       const isSupported = ["png", "webp", "flac", "mp4"].some(
-        (ext) => contentType.includes(ext) || extension === ext,
+        (ext) => contentType.includes(ext) || extension === ext
       );
 
       if (!isSupported) {
@@ -112,7 +110,7 @@ export default function Home() {
       toast.error(
         `Error loading file from URL: ${
           error instanceof Error ? error.message : String(error)
-        }`,
+        }`
       );
       console.error("Error loading file from URL:", error);
     }
@@ -132,7 +130,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          }),
+          })
       )
       .filter()
       .toArray();
@@ -364,8 +362,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                    ? "(overwrite)"
-                    : "(save as)"}
+                  ? "(overwrite)"
+                  : "(save as)"}
               </span>
             </button>
           </div>
@@ -428,7 +426,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File,
+    file: File
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -486,7 +484,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number,
+  i: number
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

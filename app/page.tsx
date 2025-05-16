@@ -43,7 +43,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir))
+    async () => workingDir && (await scanFilelist(workingDir)),
   );
 
   const monaco = useMonaco();
@@ -53,7 +53,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow"
+        "#save-workflow",
       ) as HTMLButtonElement;
       savebtn?.click();
     });
@@ -77,7 +77,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          })
+          }),
       )
       .filter()
       .toArray();
@@ -100,11 +100,11 @@ export default function Home() {
           const errorData = await response.json();
           throw new Error(
             errorData.error ||
-              `Failed to fetch file from URL: ${response.statusText}`
+              `Failed to fetch file from URL: ${response.statusText}`,
           );
         } catch (e) {
           throw new Error(
-            `Failed to fetch file from URL: ${response.statusText}`
+            `Failed to fetch file from URL: ${response.statusText}`,
           );
         }
       }
@@ -116,7 +116,7 @@ export default function Home() {
         if (!contentDisposition)
           throw new Error("No filename provided by backend");
         const match = contentDisposition.match(
-          /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i
+          /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i,
         );
         if (match && match[1]) {
           return decodeURIComponent(match[1]);
@@ -137,7 +137,7 @@ export default function Home() {
       toast.error(
         `Error loading file from URL: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       console.error("Error loading file from URL:", error);
     }
@@ -197,7 +197,7 @@ export default function Home() {
                     (
                       e.target as HTMLInputElement
                     ).nextElementSibling?.dispatchEvent(
-                      new MouseEvent("click", { bubbles: true })
+                      new MouseEvent("click", { bubbles: true }),
                     );
                   }
                 }}
@@ -455,8 +455,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                  ? "(overwrite)"
-                  : "(save as)"}
+                    ? "(overwrite)"
+                    : "(save as)"}
               </span>
             </button>
           </div>
@@ -519,7 +519,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File
+    file: File,
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -577,7 +577,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number
+  i: number,
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

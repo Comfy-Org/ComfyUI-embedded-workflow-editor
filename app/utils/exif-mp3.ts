@@ -10,13 +10,13 @@
  * @returns Object containing extracted metadata with keys as field names and values as strings
  */
 export function getMp3Metadata(
-  input: Uint8Array | ArrayBuffer
+  input: Uint8Array | ArrayBuffer,
 ): Record<string, string> {
   const buffer = input instanceof Uint8Array ? input : new Uint8Array(input);
   const dataView = new DataView(
     buffer.buffer,
     buffer.byteOffset,
-    buffer.byteLength
+    buffer.byteLength,
   );
   const metadata: Record<string, string> = {};
 
@@ -48,7 +48,7 @@ export function getMp3Metadata(
  */
 export function setMp3Metadata(
   buffer: ArrayBuffer | SharedArrayBuffer | Uint8Array,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   // Convert to Uint8Array if not already
   const inputData =
@@ -57,16 +57,16 @@ export function setMp3Metadata(
   const dataView = new DataView(
     inputData.buffer,
     inputData.byteOffset,
-    inputData.byteLength
+    inputData.byteLength,
   );
 
   try {
     // Retrieve existing metadata to preserve it
     const existingMetadata = getMp3Metadata(inputData);
-    
+
     // Merge existing metadata with new metadata (new takes precedence)
     const mergedMetadata = { ...existingMetadata, ...metadata };
-    
+
     // Create or update ID3v2 tags with merged metadata
     return updateID3v2Tags(inputData, dataView, mergedMetadata);
   } catch (error) {
@@ -89,7 +89,7 @@ function isID3v2(dataView: DataView): boolean {
   const id3Header = String.fromCharCode(
     dataView.getUint8(0),
     dataView.getUint8(1),
-    dataView.getUint8(2)
+    dataView.getUint8(2),
   );
 
   return id3Header === "ID3";
@@ -110,7 +110,7 @@ function hasID3v1(dataView: DataView): boolean {
   const tagMarker = String.fromCharCode(
     dataView.getUint8(offset),
     dataView.getUint8(offset + 1),
-    dataView.getUint8(offset + 2)
+    dataView.getUint8(offset + 2),
   );
 
   return tagMarker === "TAG";
@@ -123,7 +123,7 @@ function hasID3v1(dataView: DataView): boolean {
  */
 function parseID3v2(
   dataView: DataView,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): void {
   // Read ID3v2 header
   const version = dataView.getUint8(3);
@@ -143,7 +143,7 @@ function parseID3v2(
         dataView.getUint8(offset),
         dataView.getUint8(offset + 1),
         dataView.getUint8(offset + 2),
-        dataView.getUint8(offset + 3)
+        dataView.getUint8(offset + 3),
       );
 
       // Frame size is 4 bytes
@@ -193,7 +193,7 @@ function parseID3v2(
         }
 
         // Store in metadata - trim any remaining null characters
-        metadata[description] = value.replace(/\0+$/g, '');
+        metadata[description] = value.replace(/\0+$/g, "");
 
         offset += valueLength;
       }
@@ -220,7 +220,7 @@ function parseID3v2(
 
         // Map common frame IDs to friendly names
         const key = mapFrameIDToKey(frameID);
-        metadata[key] = value.replace(/\0+$/g, '');
+        metadata[key] = value.replace(/\0+$/g, "");
 
         offset += frameSize - 1;
       } else {
@@ -232,7 +232,7 @@ function parseID3v2(
       const frameID = String.fromCharCode(
         dataView.getUint8(offset),
         dataView.getUint8(offset + 1),
-        dataView.getUint8(offset + 2)
+        dataView.getUint8(offset + 2),
       );
 
       const frameSize =
@@ -255,7 +255,7 @@ function parseID3v2(
  */
 function parseID3v1(
   dataView: DataView,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): void {
   const offset = dataView.byteLength - 128;
 
@@ -281,7 +281,7 @@ function parseID3v1(
 function updateID3v2Tags(
   inputData: Uint8Array,
   dataView: DataView,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
 ): Uint8Array {
   // Create a new ID3v2.4 tag
   const id3Header = new Uint8Array([
@@ -414,7 +414,7 @@ function createTextFrame(frameId: string, value: string): Uint8Array {
 function readString(
   dataView: DataView,
   offset: number,
-  length: number
+  length: number,
 ): string {
   let result = "";
   for (let i = 0; i < length; i++) {
@@ -449,7 +449,7 @@ function getSynchsafeInt(dataView: DataView, offset: number): number {
 function setSynchsafeInt(
   buffer: Uint8Array,
   offset: number,
-  value: number
+  value: number,
 ): void {
   buffer[offset] = (value >> 21) & 0x7f;
   buffer[offset + 1] = (value >> 14) & 0x7f;

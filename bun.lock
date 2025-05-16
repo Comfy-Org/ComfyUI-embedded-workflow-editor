@@ -1,6 +1,1 @@
 > git add . && git commit -m "fix(main): bun.lockb -" -m "bun.lockb -"
-[main f7aafcd] fix(main): bun.lockb -
- 2 files changed, 1 insertion(+)
- create mode 100644 bun.lock
- delete mode 100755 bun.lockb
-> (git add . && git commit -m "fix(main): bun.lockb -" -m "bun.lockb -")

@@ -1,0 +1,2 @@
+[2025-05-16T09:37:21.205Z] Corrected content type from "application/octet-stream" to "video/mp4" for file: img2vid_00009_.mp4
+[2025-05-16T09:37:21.206Z] Serving file: img2vid_00009_.mp4 with contentType: video/mp4 from URL: https://github.com/Comfy-Org/ComfyUI-embedded-workflow-editor/raw/refs/heads/main/tests/mp4/img2vid_00009_.mp4

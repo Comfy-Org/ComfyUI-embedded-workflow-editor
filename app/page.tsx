@@ -33,7 +33,7 @@ export default function Home() {
     ],
     name: "ComfyUI Embedded Workflow Editor",
     short_name: "CWE",
-    start_url: "/",
+    start_url: globalThis.window?.location.origin ?? "/",
   });
 
   const snap = useSnapshot(persistState);
@@ -43,7 +43,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir)),
+    async () => workingDir && (await scanFilelist(workingDir))
   );
 
   const monaco = useMonaco();
@@ -53,7 +53,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow",
+        "#save-workflow"
       ) as HTMLButtonElement;
       savebtn?.click();
     });
@@ -63,70 +63,9 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
-  const urlParam = useSearchParam("url");
-  useEffect(() => {
-    if (urlParam) {
-      if (Array.isArray(urlParam)) {
-        toast.error("Only one URL is supported at a time.");
-      } else {
-        loadMediaFromUrl(urlParam);
-      }
-    }
-  }, [urlParam]);
-
-  const loadMediaFromUrl = async (url: string) => {
-    try {
-      setUrlInput(url);
-      toast.loading(`Loading file from URL: ${url}`);
-
-      // Use the proxy endpoint instead of fetching directly
-      const proxyUrl = `/api/media?url=${encodeURIComponent(url)}`;
-      const response = await fetch(proxyUrl);
-      
-      if (!response.ok) {
-        // Try to parse error message from JSON response
-        try {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch file from URL: ${response.statusText}`);
-        } catch (e) {
-          throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
-        }
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      // Try to get filename from Content-Disposition header, fallback to URL
-      let fileName = "file";
-      const contentDisposition = response.headers.get("content-disposition");
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"']+)/i);
-        if (match && match[1]) {
-          fileName = decodeURIComponent(match[1]);
-        }
-      }
-      if (fileName === "file") {
-        fileName = url.split("/").pop() || "file";
-      }
-      
-      const blob = await response.blob();
-      const file = new File([blob], fileName, { type: contentType || blob.type });
-
-      await gotFiles([file]);
-      toast.dismiss();
-      toast.success(`File loaded from URL: ${fileName}`);
-    } catch (error) {
-      toast.dismiss();
-      toast.error(
-        `Error loading file from URL: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      console.error("Error loading file from URL:", error);
-    }
-  };
-
-  const gotFiles = async (input: File[] | FileList) => {
+  async function gotFiles(input: File[] | FileList) {
     const files = input instanceof FileList ? fileListToArray(input) : input;
-    if (!files.length) return;
+    if (!files.length) return toast.error("No files provided.");
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
         if (e.name.match(/\.(png|flac|webp|mp4)$/i)) return true;
@@ -138,14 +77,81 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          }),
+          })
       )
       .filter()
       .toArray();
     setWorkingDir(undefined);
     setTasklist(readedWorkflowInfos);
     chooseNthFileToEdit(readedWorkflowInfos, 0);
-  };
+  }
+  async function loadMediaFromUrl(url: string) {
+    try {
+      setUrlInput(url);
+      toast.loading(`Loading file from URL: ${url}`);
+
+      // Use the proxy endpoint instead of fetching directly
+      const proxyUrl = `/api/media?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+
+      if (!response.ok) {
+        // Try to parse error message from JSON response
+        try {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error ||
+              `Failed to fetch file from URL: ${response.statusText}`
+          );
+        } catch (e) {
+          throw new Error(
+            `Failed to fetch file from URL: ${response.statusText}`
+          );
+        }
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      // Assume backend already parses filename and throws if not present
+      const fileName = (() => {
+        const contentDisposition = response.headers.get("content-disposition");
+        if (!contentDisposition)
+          throw new Error("No filename provided by backend");
+        const match = contentDisposition.match(
+          /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i
+        );
+        if (match && match[1]) {
+          return decodeURIComponent(match[1]);
+        }
+        throw new Error("Failed to parse filename from backend response");
+      })();
+
+      const blob = await response.blob();
+      const file = new File([blob], fileName, {
+        type: contentType || blob.type,
+      });
+      console.log("Loaded file from URL:", file);
+      await gotFiles([file]);
+      toast.dismiss();
+      toast.success(`File loaded from URL: ${fileName}`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error(
+        `Error loading file from URL: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      console.error("Error loading file from URL:", error);
+    }
+  }
+  const urlParam = useSearchParam("url");
+  useEffect(() => {
+    if (urlParam) {
+      if (Array.isArray(urlParam)) {
+        toast.error("Only one URL is supported at a time.");
+      } else {
+        loadMediaFromUrl(urlParam);
+      }
+    }
+  }, [urlParam]);
 
   return (
     <div
@@ -188,15 +194,20 @@ export default function Home() {
                 placeholder="Way-4. Paste URL here (png, webp, flac, mp4)"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && urlInput) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set("url", urlInput);
-                    window.history.pushState({}, "", url);
-                    loadMediaFromUrl(urlInput);
+                    (
+                      e.target as HTMLInputElement
+                    ).nextElementSibling?.dispatchEvent(
+                      new MouseEvent("click", { bubbles: true })
+                    );
                   }
                 }}
               />
               <button
                 className="btn btn-sm"
+                disabled={
+                  !urlInput ||
+                  !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(urlInput.trim())
+                }
                 onClick={() => {
                   if (urlInput) {
                     const url = new URL(window.location.href);
@@ -279,21 +290,49 @@ export default function Home() {
                     onClick={() => void chooseNthFileToEdit(tasklist, i)}
                     value={e.name}
                   />{" "}
-                  {e.file.type.includes("flac") ? (
-                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
-                      <span className="text-xs">🎵</span>
-                    </div>
-                  ) : e.file.type.includes("mp4") ||
-                    e.file.type.includes("video") ? (
-                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
-                      <span className="text-xs">🎬</span>
-                    </div>
-                  ) : (
-                    <img
-                      src={e.previewUrl}
-                      className="w-[2em] h-[2em] inline object-cover"
-                    />
-                  )}{" "}
+                  {(() => {
+                    const thumbnail: Record<string, JSX.Element> = {
+                      flac: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎵</span>
+                        </div>
+                      ),
+                      mp4: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎬</span>
+                        </div>
+                      ),
+                      video: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎬</span>
+                        </div>
+                      ),
+                      img: (
+                        <img
+                          src={e.previewUrl}
+                          className="w-[2em] h-[2em] inline object-cover"
+                          alt="Preview"
+                        />
+                      ),
+                      default: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">❓</span>
+                        </div>
+                      ),
+                    };
+                    const ext =
+                      e.file.name.split(".").pop()?.toLowerCase() || "";
+                    const typeMap: Record<string, keyof typeof thumbnail> = {
+                      png: "img",
+                      jpg: "img",
+                      jpeg: "img",
+                      webp: "img",
+                      flac: "flac",
+                      mp4: "mp4",
+                    };
+                    // Use dict/typeMap instead of if/else
+                    return thumbnail[typeMap[ext]] || thumbnail.default;
+                  })()}{" "}
                   <div className="inline-flex flex-col">
                     <label htmlFor={id}>{e.name}</label>
                     <div className="italic text-xs text-slate-500">
@@ -317,28 +356,74 @@ export default function Home() {
       >
         <div className="flex flex-row items-center gap-4 p-2">
           <div className="flex flex-col gap-1"></div>
-          {tasklist[snap.editing_index]?.file.type.includes("mp4") ||
-          tasklist[snap.editing_index]?.file.type.includes("video") ? (
-            <video
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[3em] inline object-contain rounded"
-              controls
-              muted
-            />
-          ) : tasklist[snap.editing_index]?.file.type.includes("flac") ||
-            tasklist[snap.editing_index]?.file.type.includes("audio") ? (
-            <audio
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[10em] inline rounded"
-              controls
-            />
-          ) : (
-            <img
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[3em] inline object-contain rounded"
-              alt="Preview Editing Image"
-            />
-          )}
+          {(() => {
+            const editingTask = tasklist[snap.editing_index];
+            if (!editingTask || !editingTask.previewUrl) {
+              return (
+                <div className="h-[3em] w-[3em] flex items-center justify-center bg-slate-100 rounded text-slate-400">
+                  <span className="text-xs">...</span>
+                </div>
+              );
+            }
+            const typeMap: Record<string, () => JSX.Element> = {
+              mp4: () => (
+                <video
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  controls
+                  muted
+                />
+              ),
+              video: () => (
+                <video
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  controls
+                  muted
+                />
+              ),
+              flac: () => (
+                <audio
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[10em] inline rounded"
+                  controls
+                />
+              ),
+              audio: () => (
+                <audio
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[10em] inline rounded"
+                  controls
+                />
+              ),
+              img: () => (
+                <img
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  alt="Preview Editing Image"
+                />
+              ),
+            };
+            const ext =
+              editingTask.file.name.split(".").pop()?.toLowerCase() || "";
+            const extTypeMap: Record<string, keyof typeof typeMap> = {
+              png: "img",
+              jpg: "img",
+              jpeg: "img",
+              webp: "img",
+              mp4: "mp4",
+              flac: "flac",
+            };
+            let typeKey = extTypeMap[ext];
+            if (!typeKey) {
+              if (editingTask.file.type.includes("video")) typeKey = "video";
+              else if (editingTask.file.type.includes("audio"))
+                typeKey = "audio";
+            }
+            return typeKey && typeMap[typeKey]
+              ? typeMap[typeKey]()
+              : typeMap["img"]();
+          })()}
           <div>
             <input
               type="text"
@@ -370,8 +455,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                    ? "(overwrite)"
-                    : "(save as)"}
+                  ? "(overwrite)"
+                  : "(save as)"}
               </span>
             </button>
           </div>
@@ -434,7 +519,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File,
+    file: File
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -492,7 +577,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number,
+  i: number
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

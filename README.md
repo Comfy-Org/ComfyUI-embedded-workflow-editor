@@ -38,6 +38,12 @@ bun install
 bun dev
 ```
 
+## References
+
+Wanna edit by node?
+
+See also: https://comfyui-wiki.github.io/ComfyUI-Workflow-JSON-Editor/
+
 ## About
 
 @snomiao 2024

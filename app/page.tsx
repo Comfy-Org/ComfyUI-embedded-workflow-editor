@@ -9,7 +9,7 @@ import { useSearchParam } from "react-use";
 import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
-import useManifestPWA from "use-manifest-pwa";
+// import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
@@ -18,23 +18,24 @@ import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
  * @author snomiao <snomiao@gmail.com> 2024
  */
 export default function Home() {
-  useManifestPWA({
-    icons: [
-      {
-        src: "/favicon.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        src: "/favicon.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
-    ],
-    name: "ComfyUI Embedded Workflow Editor",
-    short_name: "CWE",
-    start_url: globalThis.window?.location.origin ?? "/",
-  });
+  // todo: enable this in another PR
+  // useManifestPWA({
+  //   icons: [
+  //     {
+  //       src: "/favicon.png",
+  //       sizes: "192x192",
+  //       type: "image/png",
+  //     },
+  //     {
+  //       src: "/favicon.png",
+  //       sizes: "512x512",
+  //       type: "image/png",
+  //     },
+  //   ],
+  //   name: "ComfyUI Embedded Workflow Editor",
+  //   short_name: "CWE",
+  //   start_url: globalThis.window?.location.origin ?? "/",
+  // });
 
   const snap = useSnapshot(persistState);
   const snapSync = useSnapshot(persistState, { sync: true });
@@ -68,7 +69,7 @@ export default function Home() {
     if (!files.length) return toast.error("No files provided.");
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
-        if (e.name.match(/\.(png|flac|webp|mp4)$/i)) return true;
+        if (e.name.match(/\.(png|flac|webp|mp4|mp3)$/i)) return true;
         toast.error("Not Supported format discarded: " + e.name);
         return null;
       })
@@ -183,7 +184,7 @@ export default function Home() {
             <input
               readOnly
               className="input input-bordered border-dashed input-sm w-full text-center"
-              placeholder="Way-1. Paste/Drop files here (png, webp, flac, mp4)"
+              placeholder="Way-1. Paste/Drop files here (png, webp, flac, mp3, mp4)"
               onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
             <div className="flex w-full gap-2">
@@ -191,7 +192,7 @@ export default function Home() {
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 className="input input-bordered input-sm flex-1"
-                placeholder="Way-4. Paste URL here (png, webp, flac, mp4)"
+                placeholder="Way-4. Paste URL here (png, webp, flac, mp3, mp4)"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && urlInput) {
                     (
@@ -232,7 +233,7 @@ export default function Home() {
                         description: "Supported Files",
                         accept: {
                           "image/*": [".png", ".webp"],
-                          "audio/*": [".flac"],
+                          "audio/*": [".flac", ".mp3"],
                           "video/*": [".mp4"],
                         },
                       },
@@ -413,6 +414,7 @@ export default function Home() {
               webp: "img",
               mp4: "mp4",
               flac: "flac",
+              mp3: "audio",
             };
             let typeKey = extTypeMap[ext];
             if (!typeKey) {
@@ -534,7 +536,7 @@ export default function Home() {
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
     const readed = await sf(aIter)
       .filter((e) => e.kind === "file")
-      .filter((e) => e.name.match(/\.(png|flac|webp|mp4)$/i))
+      .filter((e) => e.name.match(/\.(png|flac|webp|mp4|mp3)$/i))
       .map(async (e) => await e.getFile())
       .map(async (e) => await readWorkflowInfo(e))
       .filter((e) => e.workflowJson)

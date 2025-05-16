@@ -1,6 +1,6 @@
 # ComfyUI embedded workflow editor
 
-In-place embedded workflow-exif editing experience for ComfyUI generated images. Edit png exif just in your browser.
+In-place embedded workflow-exif editing experience for ComfyUI generated media files. Edit workflow data embedded in PNG, WEBP, FLAC, MP3, and MP4 files directly in your browser.
 
 ![screenshot](docs/screenshot.png)
 
@@ -8,6 +8,7 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
 
 1. Open https://comfyui-embeded-workflow-editor.vercel.app/
 2. Upload your img (or mount your local directory)
+   - Supported formats: PNG, WEBP, FLAC, MP3, MP4
    - You can also directly load a file via URL parameter: `?url=https://example.com/image.png`
    - Or paste a URL into the URL input field
 3. Edit as you want
@@ -19,6 +20,7 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
   - [x] png read/write
   - [x] webp read/write
   - [x] Flac read/write
+  - [x] MP3 read/write
   - [x] MP4 read/write
   - [ ] jpg (seems not possible yet)
 - [x] Show preview img to ensure you are editing the right image (thumbnail)

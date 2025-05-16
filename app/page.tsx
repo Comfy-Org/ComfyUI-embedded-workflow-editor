@@ -5,6 +5,7 @@ import md5 from "md5";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { useSearchParam } from "react-use";
 import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
@@ -31,13 +32,14 @@ export default function Home() {
       },
     ],
     name: "ComfyUI Embedded Workflow Editor",
-    short_name: "CUI-EWE",
-    start_url: "/",
+    short_name: "CWE",
+    start_url: globalThis.window?.location.origin ?? "/",
   });
 
   const snap = useSnapshot(persistState);
   const snapSync = useSnapshot(persistState, { sync: true });
   const [workingDir, setWorkingDir] = useState<FileSystemDirectoryHandle>();
+  const [urlInput, setUrlInput] = useState("");
 
   useSWR(
     "/filelist",
@@ -54,13 +56,6 @@ export default function Home() {
         "#save-workflow",
       ) as HTMLButtonElement;
       savebtn?.click();
-      // editor.getAction("editor.action.formatDocument")!.run();
-
-      // assume editing_workflow_json is latest
-
-      // const workflow = tryMinifyJson(persistState.editing_workflow_json);
-      // const modifiedMetadata = { workflow };
-      // await saveCurrentFile(tasklist, modifiedMetadata);
     });
   }, [monaco, editor]);
 
@@ -68,9 +63,9 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
-  const gotFiles = async (input: File[] | FileList) => {
+  async function gotFiles(input: File[] | FileList) {
     const files = input instanceof FileList ? fileListToArray(input) : input;
-    if (!files.length) return;
+    if (!files.length) return toast.error("No files provided.");
     const readedWorkflowInfos = await sflow(files)
       .filter((e) => {
         if (e.name.match(/\.(png|flac|webp|mp4)$/i)) return true;
@@ -84,13 +79,80 @@ export default function Home() {
             return null;
           }),
       )
-      .filter() // filter empty
+      .filter()
       .toArray();
     setWorkingDir(undefined);
     setTasklist(readedWorkflowInfos);
     chooseNthFileToEdit(readedWorkflowInfos, 0);
-  };
-  // when trying to enqueue, try ensure the output with same prefix with the input file
+  }
+  async function loadMediaFromUrl(url: string) {
+    try {
+      setUrlInput(url);
+      toast.loading(`Loading file from URL: ${url}`);
+
+      // Use the proxy endpoint instead of fetching directly
+      const proxyUrl = `/api/media?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+
+      if (!response.ok) {
+        // Try to parse error message from JSON response
+        try {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error ||
+              `Failed to fetch file from URL: ${response.statusText}`,
+          );
+        } catch (e) {
+          throw new Error(
+            `Failed to fetch file from URL: ${response.statusText}`,
+          );
+        }
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      // Assume backend already parses filename and throws if not present
+      const fileName = (() => {
+        const contentDisposition = response.headers.get("content-disposition");
+        if (!contentDisposition)
+          throw new Error("No filename provided by backend");
+        const match = contentDisposition.match(
+          /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i,
+        );
+        if (match && match[1]) {
+          return decodeURIComponent(match[1]);
+        }
+        throw new Error("Failed to parse filename from backend response");
+      })();
+
+      const blob = await response.blob();
+      const file = new File([blob], fileName, {
+        type: contentType || blob.type,
+      });
+      console.log("Loaded file from URL:", file);
+      await gotFiles([file]);
+      toast.dismiss();
+      toast.success(`File loaded from URL: ${fileName}`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error(
+        `Error loading file from URL: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      console.error("Error loading file from URL:", error);
+    }
+  }
+  const urlParam = useSearchParam("url");
+  useEffect(() => {
+    if (urlParam) {
+      if (Array.isArray(urlParam)) {
+        toast.error("Only one URL is supported at a time.");
+      } else {
+        loadMediaFromUrl(urlParam);
+      }
+    }
+  }, [urlParam]);
+
   return (
     <div
       className="flex flex-row gap-1 justify-center rounded-lg"
@@ -124,13 +186,46 @@ export default function Home() {
               placeholder="Way-1. Paste/Drop files here (png, webp, flac, mp4)"
               onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
+            <div className="flex w-full gap-2">
+              <input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className="input input-bordered input-sm flex-1"
+                placeholder="Way-4. Paste URL here (png, webp, flac, mp4)"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && urlInput) {
+                    (
+                      e.target as HTMLInputElement
+                    ).nextElementSibling?.dispatchEvent(
+                      new MouseEvent("click", { bubbles: true }),
+                    );
+                  }
+                }}
+              />
+              <button
+                className="btn btn-sm"
+                disabled={
+                  !urlInput ||
+                  !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(urlInput.trim())
+                }
+                onClick={() => {
+                  if (urlInput) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("url", urlInput);
+                    window.history.pushState({}, "", url);
+                    loadMediaFromUrl(urlInput);
+                  }
+                }}
+              >
+                Load URL
+              </button>
+            </div>
             <motion.button
               name="open-files"
               className="btn w-full"
               animate={{}}
               onClick={async () => {
                 const filesHandles: FileSystemFileHandle[] =
-                  // @ts-expect-error new api
                   await window.showOpenFilePicker({
                     types: [
                       {
@@ -158,7 +253,6 @@ export default function Home() {
               className="btn w-full"
               onClick={async () => {
                 const workingDir =
-                  // @ts-expect-error new api
                   (await window.showDirectoryPicker()) as unknown as FileSystemDirectoryHandle;
                 setWorkingDir(workingDir);
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
@@ -167,7 +261,6 @@ export default function Home() {
               Way-3. Mount a Folder
             </button>
             <i>* possibly choose /ComfyUI/output</i>
-            {/* <div>* /ComfyUI/output</div> */}
           </div>
         </div>
         <br />
@@ -197,21 +290,49 @@ export default function Home() {
                     onClick={() => void chooseNthFileToEdit(tasklist, i)}
                     value={e.name}
                   />{" "}
-                  {e.file.type.includes("flac") ? (
-                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
-                      <span className="text-xs">🎵</span>
-                    </div>
-                  ) : e.file.type.includes("mp4") ||
-                    e.file.type.includes("video") ? (
-                    <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
-                      <span className="text-xs">🎬</span>
-                    </div>
-                  ) : (
-                    <img
-                      src={e.previewUrl}
-                      className="w-[2em] h-[2em] inline object-cover"
-                    />
-                  )}{" "}
+                  {(() => {
+                    const thumbnail: Record<string, JSX.Element> = {
+                      flac: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎵</span>
+                        </div>
+                      ),
+                      mp4: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎬</span>
+                        </div>
+                      ),
+                      video: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">🎬</span>
+                        </div>
+                      ),
+                      img: (
+                        <img
+                          src={e.previewUrl}
+                          className="w-[2em] h-[2em] inline object-cover"
+                          alt="Preview"
+                        />
+                      ),
+                      default: (
+                        <div className="w-[2em] h-[2em] inline-flex items-center justify-center bg-slate-100 rounded">
+                          <span className="text-xs">❓</span>
+                        </div>
+                      ),
+                    };
+                    const ext =
+                      e.file.name.split(".").pop()?.toLowerCase() || "";
+                    const typeMap: Record<string, keyof typeof thumbnail> = {
+                      png: "img",
+                      jpg: "img",
+                      jpeg: "img",
+                      webp: "img",
+                      flac: "flac",
+                      mp4: "mp4",
+                    };
+                    // Use dict/typeMap instead of if/else
+                    return thumbnail[typeMap[ext]] || thumbnail.default;
+                  })()}{" "}
                   <div className="inline-flex flex-col">
                     <label htmlFor={id}>{e.name}</label>
                     <div className="italic text-xs text-slate-500">
@@ -227,42 +348,6 @@ export default function Home() {
             })}
           </fieldset>
         </ul>
-        {/* <div>
-          <label className="font-semibold" htmlFor="editingImage">
-            Choose Editing Image
-          </label>
-          {snap.working_folder_name}
-          <input
-            name="editingImage"
-            className="input input-bordered input-sm"
-            value={snap.editing_img_filename ?? ""}
-            onChange={(e) => void (state.editing_img_filename = e.target.value)}
-          />
-          <datalist></datalist>
-        </div> */}
-        {/* <div className="flex flex-col gap-1">
-          <label className="font-semibold" htmlFor="imgprefix">
-            Output Image Prefix
-          </label>
-          <input
-            name="imgprefix"
-            value={snap.imgprefix}
-            onChange={(e) => void (state.imgprefix = e.target.value)}
-          />
-        </div> */}
-        <div className={clsx("flex flex-col gap-1 hidden")}>
-          <label className="font-semibold" htmlFor="comfyapi">
-            ComfyUI Server
-          </label>
-          <input
-            name="comfyapi"
-            value={snapSync.comfyapi}
-            onChange={(e) => void (persistState.comfyapi = e.target.value)}
-          />
-          <div>
-            {snap.connected ? "Connected" : snap.connecting ? "Connecting" : ""}
-          </div>
-        </div>
       </div>
       <div
         className={clsx("w-full h-screen flex flex-col gap-1 ", {
@@ -271,30 +356,74 @@ export default function Home() {
       >
         <div className="flex flex-row items-center gap-4 p-2">
           <div className="flex flex-col gap-1"></div>
-          {tasklist[snap.editing_index]?.file.type.includes("mp4") ||
-          tasklist[snap.editing_index]?.file.type.includes("video") ? (
-            <video
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[3em] inline object-contain rounded"
-              // alt="Preview Editing Video"
-              controls
-              muted
-            />
-          ) : tasklist[snap.editing_index]?.file.type.includes("flac") ||
-            tasklist[snap.editing_index]?.file.type.includes("audio") ? (
-            <audio
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[10em] inline rounded"
-              // alt="Preview Editing Audio"
-              controls
-            />
-          ) : (
-            <img
-              src={tasklist[snap.editing_index]?.previewUrl ?? ""}
-              className="h-[3em] w-[3em] inline object-contain rounded"
-              alt="Preview Editing Image"
-            />
-          )}
+          {(() => {
+            const editingTask = tasklist[snap.editing_index];
+            if (!editingTask || !editingTask.previewUrl) {
+              return (
+                <div className="h-[3em] w-[3em] flex items-center justify-center bg-slate-100 rounded text-slate-400">
+                  <span className="text-xs">...</span>
+                </div>
+              );
+            }
+            const typeMap: Record<string, () => JSX.Element> = {
+              mp4: () => (
+                <video
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  controls
+                  muted
+                />
+              ),
+              video: () => (
+                <video
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  controls
+                  muted
+                />
+              ),
+              flac: () => (
+                <audio
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[10em] inline rounded"
+                  controls
+                />
+              ),
+              audio: () => (
+                <audio
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[10em] inline rounded"
+                  controls
+                />
+              ),
+              img: () => (
+                <img
+                  src={editingTask.previewUrl}
+                  className="h-[3em] w-[3em] inline object-contain rounded"
+                  alt="Preview Editing Image"
+                />
+              ),
+            };
+            const ext =
+              editingTask.file.name.split(".").pop()?.toLowerCase() || "";
+            const extTypeMap: Record<string, keyof typeof typeMap> = {
+              png: "img",
+              jpg: "img",
+              jpeg: "img",
+              webp: "img",
+              mp4: "mp4",
+              flac: "flac",
+            };
+            let typeKey = extTypeMap[ext];
+            if (!typeKey) {
+              if (editingTask.file.type.includes("video")) typeKey = "video";
+              else if (editingTask.file.type.includes("audio"))
+                typeKey = "audio";
+            }
+            return typeKey && typeMap[typeKey]
+              ? typeMap[typeKey]()
+              : typeMap["img"]();
+          })()}
           <div>
             <input
               type="text"
@@ -331,17 +460,6 @@ export default function Home() {
               </span>
             </button>
           </div>
-
-          {/* <div>
-            <input
-              type="checkbox"
-              name="autosave"
-              checked={snap.autosave}
-              onChange={(e) => (persistState.autosave = e.target.checked)}
-              id="autosave"
-            />
-            <label htmlFor="autosave">Auto Save</label>
-          </div> */}
         </div>
         <Editor
           language="json"
@@ -413,7 +531,6 @@ export default function Home() {
   }
 
   async function scanFilelist(workingDir: FileSystemDirectoryHandle) {
-    // @ts-expect-error new api
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
     const readed = await sf(aIter)
       .filter((e) => e.kind === "file")

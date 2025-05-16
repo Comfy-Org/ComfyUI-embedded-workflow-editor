@@ -8,6 +8,8 @@ In-place embedded workflow-exif editing experience for ComfyUI generated images.
 
 1. Open https://comfyui-embeded-workflow-editor.vercel.app/
 2. Upload your img (or mount your local directory)
+   - You can also directly load a file via URL parameter: `?url=https://example.com/image.png`
+   - Or paste a URL into the URL input field
 3. Edit as you want
 4. Save!
 

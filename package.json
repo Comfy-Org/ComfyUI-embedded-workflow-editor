@@ -31,7 +31,7 @@
     "timeago-react": "^3.0.6",
     "uint8array-extras": "^1.4.0",
     "use-hooks": "^2.0.0-rc.5",
-    "use-manifest-pwa": "^1.0.0",
+    "use-manifest-pwa": "^1.0.6",
     "valtio": "^2.1.2"
   },
   "devDependencies": {

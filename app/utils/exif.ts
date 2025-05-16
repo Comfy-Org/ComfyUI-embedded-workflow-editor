@@ -1,4 +1,5 @@
 import { getFlacMetadata, setFlacMetadata } from "./exif-flac";
+import { getMp3Metadata, setMp3Metadata } from "./exif-mp3";
 import { getMp4Metadata, setMp4Metadata } from "./exif-mp4";
 import { getPngMetadata, setPngMetadata } from "./exif-png";
 import { getWebpMetadata, setWebpMetadata } from "./exif-webp";
@@ -14,6 +15,8 @@ export function getWorkflowInfo(
     "image/png": getPngMetadata,
     "audio/flac": getFlacMetadata,
     "audio/x-flac": getFlacMetadata,
+    "audio/mp3": getMp3Metadata,
+    "audio/mpeg": getMp3Metadata,
     "video/mp4": getMp4Metadata,
   };
 
@@ -67,6 +70,8 @@ export function setWorkflowInfo(
     "image/png": setPngMetadata,
     "audio/flac": setFlacMetadata,
     "audio/x-flac": setFlacMetadata,
+    "audio/mp3": setMp3Metadata,
+    "audio/mpeg": setMp3Metadata,
     "video/mp4": setMp4Metadata,
   };
 

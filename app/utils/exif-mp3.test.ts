@@ -1,12 +1,9 @@
 import { getMp3Metadata, setMp3Metadata } from "./exif-mp3";
 
-test("MP3 metadata extraction", () => {
+test("MP3 metadata extraction", async () => {
   // Read test MP3 file
-  const testFilePath = path.join(
-    process.cwd(),
-    "tests/mp3/ComfyUI_00047_.mp3"
-  );
-  const buffer = fs.readFileSync(testFilePath);
+  const testFile = Bun.file("tests/mp3/ComfyUI_00047_.mp3");
+  const buffer = await testFile.arrayBuffer();
 
   // Extract metadata
   const metadata = getMp3Metadata(buffer);
@@ -18,13 +15,10 @@ test("MP3 metadata extraction", () => {
   expect(metadata).toBeDefined();
 });
 
-test("MP3 metadata write and read", () => {
+test("MP3 metadata write and read", async () => {
   // Read test MP3 file
-  const testFilePath = path.join(
-    process.cwd(),
-    "tests/mp3/ComfyUI_00047_.mp3"
-  );
-  const buffer = fs.readFileSync(testFilePath);
+  const testFile = Bun.file("tests/mp3/ComfyUI_00047_.mp3");
+  const buffer = await testFile.arrayBuffer();
   
   // Create test workflow JSON
   const testWorkflow = JSON.stringify({
@@ -32,7 +26,7 @@ test("MP3 metadata write and read", () => {
     nodes: [{ id: 1, name: "Test Node" }]
   });
   
-  // Set metadata
+  // Set metadata - now we can pass the Buffer directly
   const modified = setMp3Metadata(buffer, { workflow: testWorkflow });
   
   // Read back the metadata
@@ -42,21 +36,18 @@ test("MP3 metadata write and read", () => {
   expect(readMetadata.workflow).toBe(testWorkflow);
 });
 
-test("MP3 metadata update", () => {
+test("MP3 metadata update", async () => {
   // Read test MP3 file
-  const testFilePath = path.join(
-    process.cwd(),
-    "tests/mp3/ComfyUI_00047_.mp3"
-  );
-  const buffer = fs.readFileSync(testFilePath);
+  const testFile = Bun.file("tests/mp3/ComfyUI_00047_.mp3");
+  const buffer = await testFile.arrayBuffer();
   
-  // First, add some metadata
+  // First, add some metadata - now we can pass the Buffer directly
   const modified1 = setMp3Metadata(buffer, { 
     title: "Test Title",
     artist: "ComfyUI"
   });
   
-  // Then, update the title but keep the artist
+  // Then, update the title but keep the artist - no need for conversion
   const modified2 = setMp3Metadata(modified1, {
     title: "Updated Title",
     workflow: "Test Workflow"
@@ -68,4 +59,5 @@ test("MP3 metadata update", () => {
   // Verify updates
   expect(readMetadata.title).toBe("Updated Title");
   expect(readMetadata.workflow).toBe("Test Workflow");
+  
 });

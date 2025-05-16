@@ -9,7 +9,7 @@ import { useSearchParam } from "react-use";
 import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
-import useManifestPWA from "use-manifest-pwa";
+// import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
@@ -18,23 +18,24 @@ import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
  * @author snomiao <snomiao@gmail.com> 2024
  */
 export default function Home() {
-  useManifestPWA({
-    icons: [
-      {
-        src: "/favicon.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        src: "/favicon.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
-    ],
-    name: "ComfyUI Embedded Workflow Editor",
-    short_name: "CWE",
-    start_url: globalThis.window?.location.origin ?? "/",
-  });
+  // todo: enable this in another PR
+  // useManifestPWA({
+  //   icons: [
+  //     {
+  //       src: "/favicon.png",
+  //       sizes: "192x192",
+  //       type: "image/png",
+  //     },
+  //     {
+  //       src: "/favicon.png",
+  //       sizes: "512x512",
+  //       type: "image/png",
+  //     },
+  //   ],
+  //   name: "ComfyUI Embedded Workflow Editor",
+  //   short_name: "CWE",
+  //   start_url: globalThis.window?.location.origin ?? "/",
+  // });
 
   const snap = useSnapshot(persistState);
   const snapSync = useSnapshot(persistState, { sync: true });

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
     }
 
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
     }
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const contentDisposition = response.headers.get("content-disposition");
     if (contentDisposition) {
       const match = contentDisposition.match(
-        /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i
+        /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i,
       );
       if (match && match[1]) {
         fileName = decodeURIComponent(match[1]);
@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     // Check if the file type is supported
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
     const isSupported = ["png", "webp", "flac", "mp4"].some(
-      (ext) => contentType.includes(ext) || extension === ext
+      (ext) => contentType.includes(ext) || extension === ext,
     );
 
     if (!isSupported) {
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
     }
 
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
   }
 }

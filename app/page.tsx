@@ -82,14 +82,19 @@ export default function Home() {
       // Use the proxy endpoint instead of fetching directly
       const proxyUrl = `/api/media?url=${encodeURIComponent(url)}`;
       const response = await fetch(proxyUrl);
-      
+
       if (!response.ok) {
         // Try to parse error message from JSON response
         try {
           const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch file from URL: ${response.statusText}`);
+          throw new Error(
+            errorData.error ||
+              `Failed to fetch file from URL: ${response.statusText}`,
+          );
         } catch (e) {
-          throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
+          throw new Error(
+            `Failed to fetch file from URL: ${response.statusText}`,
+          );
         }
       }
 
@@ -98,7 +103,9 @@ export default function Home() {
       let fileName = "file";
       const contentDisposition = response.headers.get("content-disposition");
       if (contentDisposition) {
-        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"']+)/i);
+        const match = contentDisposition.match(
+          /filename\*?=(?:UTF-8'')?["']?([^;"']+)/i,
+        );
         if (match && match[1]) {
           fileName = decodeURIComponent(match[1]);
         }
@@ -106,9 +113,11 @@ export default function Home() {
       if (fileName === "file") {
         fileName = url.split("/").pop() || "file";
       }
-      
+
       const blob = await response.blob();
-      const file = new File([blob], fileName, { type: contentType || blob.type });
+      const file = new File([blob], fileName, {
+        type: contentType || blob.type,
+      });
 
       await gotFiles([file]);
       toast.dismiss();

@@ -19,7 +19,7 @@ import { useSearchParams } from "next/navigation";
  */
 export default function Home() {
   const searchParams = useSearchParams();
-  
+
   useManifestPWA({
     icons: [
       {
@@ -74,7 +74,7 @@ export default function Home() {
 
   // Check for URL parameter on load
   useEffect(() => {
-    const urlParam = searchParams.get('url');
+    const urlParam = searchParams.get("url");
     if (urlParam) {
       setUrlInput(urlParam);
       loadMediaFromUrl(urlParam);
@@ -84,34 +84,38 @@ export default function Home() {
   const loadMediaFromUrl = async (url: string) => {
     try {
       toast.loading(`Loading file from URL: ${url}`);
-      
+
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch file from URL: ${response.statusText}`,
+        );
       }
-      
-      const contentType = response.headers.get('content-type') || '';
-      const extension = url.split('.').pop()?.toLowerCase() || '';
-      
-      const isSupported = ['png', 'webp', 'flac', 'mp4'].some(ext => 
-        contentType.includes(ext) || extension === ext
+
+      const contentType = response.headers.get("content-type") || "";
+      const extension = url.split(".").pop()?.toLowerCase() || "";
+
+      const isSupported = ["png", "webp", "flac", "mp4"].some(
+        (ext) => contentType.includes(ext) || extension === ext,
       );
-      
+
       if (!isSupported) {
         throw new Error(`Unsupported file format: ${contentType || extension}`);
       }
-      
+
       const blob = await response.blob();
-      const fileName = url.split('/').pop() || 'file';
+      const fileName = url.split("/").pop() || "file";
       const file = new File([blob], fileName, { type: blob.type });
-      
+
       await gotFiles([file]);
       toast.dismiss();
       toast.success(`File loaded from URL: ${fileName}`);
     } catch (error) {
       toast.dismiss();
-      toast.error(`Error loading file from URL: ${error instanceof Error ? error.message : String(error)}`);
-      console.error('Error loading file from URL:', error);
+      toast.error(
+        `Error loading file from URL: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      console.error("Error loading file from URL:", error);
     }
   };
 
@@ -185,9 +189,9 @@ export default function Home() {
                   if (urlInput) {
                     // Update URL with the parameter for sharing
                     const url = new URL(window.location.href);
-                    url.searchParams.set('url', urlInput);
-                    window.history.pushState({}, '', url);
-                    
+                    url.searchParams.set("url", urlInput);
+                    window.history.pushState({}, "", url);
+
                     // Load the file from URL
                     loadMediaFromUrl(urlInput);
                   }

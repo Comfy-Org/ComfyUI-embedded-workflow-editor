@@ -3,7 +3,6 @@ import Editor, { useMonaco } from "@monaco-editor/react";
 import clsx from "clsx";
 import md5 from "md5";
 import { motion } from "motion/react";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import sflow, { sf } from "sflow";
@@ -13,13 +12,14 @@ import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
 import { readWorkflowInfo, setWorkflowInfo } from "./utils/exif";
+import { useSearchParams } from "next/navigation";
 
 /**
  * @author snomiao <snomiao@gmail.com> 2024
  */
 export default function Home() {
   const searchParams = useSearchParams();
-
+  
   useManifestPWA({
     icons: [
       {
@@ -34,7 +34,7 @@ export default function Home() {
       },
     ],
     name: "ComfyUI Embedded Workflow Editor",
-    short_name: "CWE",
+    short_name: "CUI-EWE",
     start_url: "/",
   });
 
@@ -45,7 +45,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir))
+    async () => workingDir && (await scanFilelist(workingDir)),
   );
 
   const monaco = useMonaco();
@@ -55,9 +55,16 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow"
+        "#save-workflow",
       ) as HTMLButtonElement;
       savebtn?.click();
+      // editor.getAction("editor.action.formatDocument")!.run();
+
+      // assume editing_workflow_json is latest
+
+      // const workflow = tryMinifyJson(persistState.editing_workflow_json);
+      // const modifiedMetadata = { workflow };
+      // await saveCurrentFile(tasklist, modifiedMetadata);
     });
   }, [monaco, editor]);
 
@@ -65,51 +72,46 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
+  // Check for URL parameter on load
   useEffect(() => {
-    const urlParam = searchParams.get("url");
+    const urlParam = searchParams.get('url');
     if (urlParam) {
+      setUrlInput(urlParam);
       loadMediaFromUrl(urlParam);
     }
   }, [searchParams]);
 
   const loadMediaFromUrl = async (url: string) => {
     try {
-      setUrlInput(url);
       toast.loading(`Loading file from URL: ${url}`);
-
+      
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(
-          `Failed to fetch file from URL: ${response.statusText}`
-        );
+        throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
       }
-
-      const contentType = response.headers.get("content-type") || "";
-      const extension = url.split(".").pop()?.toLowerCase() || "";
-
-      const isSupported = ["png", "webp", "flac", "mp4"].some(
-        (ext) => contentType.includes(ext) || extension === ext
+      
+      const contentType = response.headers.get('content-type') || '';
+      const extension = url.split('.').pop()?.toLowerCase() || '';
+      
+      const isSupported = ['png', 'webp', 'flac', 'mp4'].some(ext => 
+        contentType.includes(ext) || extension === ext
       );
-
+      
       if (!isSupported) {
         throw new Error(`Unsupported file format: ${contentType || extension}`);
       }
-
+      
       const blob = await response.blob();
-      const fileName = url.split("/").pop() || "file";
+      const fileName = url.split('/').pop() || 'file';
       const file = new File([blob], fileName, { type: blob.type });
-
+      
       await gotFiles([file]);
       toast.dismiss();
       toast.success(`File loaded from URL: ${fileName}`);
     } catch (error) {
       toast.dismiss();
-      toast.error(
-        `Error loading file from URL: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-      console.error("Error loading file from URL:", error);
+      toast.error(`Error loading file from URL: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Error loading file from URL:', error);
     }
   };
 
@@ -127,15 +129,15 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          })
+          }),
       )
-      .filter()
+      .filter() // filter empty
       .toArray();
     setWorkingDir(undefined);
     setTasklist(readedWorkflowInfos);
     chooseNthFileToEdit(readedWorkflowInfos, 0);
   };
-
+  // when trying to enqueue, try ensure the output with same prefix with the input file
   return (
     <div
       className="flex flex-row gap-1 justify-center rounded-lg"
@@ -169,28 +171,24 @@ export default function Home() {
               placeholder="Way-1. Paste/Drop files here (png, webp, flac, mp4)"
               onPaste={async (e) => await gotFiles(e.clipboardData.files)}
             />
+            {/* URL Input Field */}
             <div className="flex w-full gap-2">
               <input
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 className="input input-bordered input-sm flex-1"
                 placeholder="Way-4. Paste URL here (png, webp, flac, mp4)"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && urlInput) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set("url", urlInput);
-                    window.history.pushState({}, "", url);
-                    loadMediaFromUrl(urlInput);
-                  }
-                }}
               />
               <button
                 className="btn btn-sm"
                 onClick={() => {
                   if (urlInput) {
+                    // Update URL with the parameter for sharing
                     const url = new URL(window.location.href);
-                    url.searchParams.set("url", urlInput);
-                    window.history.pushState({}, "", url);
+                    url.searchParams.set('url', urlInput);
+                    window.history.pushState({}, '', url);
+                    
+                    // Load the file from URL
                     loadMediaFromUrl(urlInput);
                   }
                 }}
@@ -204,6 +202,7 @@ export default function Home() {
               animate={{}}
               onClick={async () => {
                 const filesHandles: FileSystemFileHandle[] =
+                  // @ts-expect-error new api
                   await window.showOpenFilePicker({
                     types: [
                       {
@@ -231,6 +230,7 @@ export default function Home() {
               className="btn w-full"
               onClick={async () => {
                 const workingDir =
+                  // @ts-expect-error new api
                   (await window.showDirectoryPicker()) as unknown as FileSystemDirectoryHandle;
                 setWorkingDir(workingDir);
                 chooseNthFileToEdit(await scanFilelist(workingDir), 0);
@@ -239,6 +239,7 @@ export default function Home() {
               Way-3. Mount a Folder
             </button>
             <i>* possibly choose /ComfyUI/output</i>
+            {/* <div>* /ComfyUI/output</div> */}
           </div>
         </div>
         <br />
@@ -298,6 +299,19 @@ export default function Home() {
             })}
           </fieldset>
         </ul>
+        <div className={clsx("flex flex-col gap-1 hidden")}>
+          <label className="font-semibold" htmlFor="comfyapi">
+            ComfyUI Server
+          </label>
+          <input
+            name="comfyapi"
+            value={snapSync.comfyapi}
+            onChange={(e) => void (persistState.comfyapi = e.target.value)}
+          />
+          <div>
+            {snap.connected ? "Connected" : snap.connecting ? "Connecting" : ""}
+          </div>
+        </div>
       </div>
       <div
         className={clsx("w-full h-screen flex flex-col gap-1 ", {
@@ -311,6 +325,7 @@ export default function Home() {
             <video
               src={tasklist[snap.editing_index]?.previewUrl ?? ""}
               className="h-[3em] w-[3em] inline object-contain rounded"
+              // alt="Preview Editing Video"
               controls
               muted
             />
@@ -319,6 +334,7 @@ export default function Home() {
             <audio
               src={tasklist[snap.editing_index]?.previewUrl ?? ""}
               className="h-[3em] w-[10em] inline rounded"
+              // alt="Preview Editing Audio"
               controls
             />
           ) : (
@@ -359,11 +375,22 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                  ? "(overwrite)"
-                  : "(save as)"}
+                    ? "(overwrite)"
+                    : "(save as)"}
               </span>
             </button>
           </div>
+
+          {/* <div>
+            <input
+              type="checkbox"
+              name="autosave"
+              checked={snap.autosave}
+              onChange={(e) => (persistState.autosave = e.target.checked)}
+              id="autosave"
+            />
+            <label htmlFor="autosave">Auto Save</label>
+          </div> */}
         </div>
         <Editor
           language="json"
@@ -423,7 +450,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File
+    file: File,
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -435,6 +462,7 @@ export default function Home() {
   }
 
   async function scanFilelist(workingDir: FileSystemDirectoryHandle) {
+    // @ts-expect-error new api
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
     const readed = await sf(aIter)
       .filter((e) => e.kind === "file")
@@ -481,7 +509,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number
+  i: number,
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

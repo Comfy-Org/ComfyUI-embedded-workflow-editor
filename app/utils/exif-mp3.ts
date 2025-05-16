@@ -61,8 +61,14 @@ export function setMp3Metadata(
   );
 
   try {
-    // Create or update ID3v2 tags
-    return updateID3v2Tags(inputData, dataView, metadata);
+    // Retrieve existing metadata to preserve it
+    const existingMetadata = getMp3Metadata(inputData);
+    
+    // Merge existing metadata with new metadata (new takes precedence)
+    const mergedMetadata = { ...existingMetadata, ...metadata };
+    
+    // Create or update ID3v2 tags with merged metadata
+    return updateID3v2Tags(inputData, dataView, mergedMetadata);
   } catch (error) {
     console.error("Error setting MP3 metadata:", error);
     throw error;

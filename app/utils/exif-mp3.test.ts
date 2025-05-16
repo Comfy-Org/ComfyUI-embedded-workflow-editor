@@ -59,5 +59,41 @@ test("MP3 metadata update", async () => {
   // Verify updates
   expect(readMetadata.title).toBe("Updated Title");
   expect(readMetadata.workflow).toBe("Test Workflow");
+  expect(readMetadata.artist).toBe("ComfyUI"); // Artist should be preserved
+});
+
+test("MP3 metadata preservation", async () => {
+  // Read test MP3 file
+  const testFile = Bun.file("tests/mp3/ComfyUI_00047_.mp3");
+  const originalBuffer = await testFile.arrayBuffer();
   
+  // Get original metadata
+  const originalMetadata = getMp3Metadata(originalBuffer);
+  console.log("Original metadata keys:", Object.keys(originalMetadata));
+  
+  // Sample workflow data
+  const sampleWorkflow = JSON.stringify({
+    test: "workflow data",
+    nodes: { id1: { class_type: "TestNode" } },
+  });
+  
+  // Update only the workflow
+  const modifiedBuffer = setMp3Metadata(originalBuffer, {
+    workflow: sampleWorkflow,
+  });
+  
+  // Get the updated metadata
+  const updatedMetadata = getMp3Metadata(modifiedBuffer);
+  
+  // Verify the workflow was updated
+  expect(updatedMetadata.workflow).toBeDefined();
+  expect(updatedMetadata.workflow).toEqual(sampleWorkflow);
+  
+  // Verify other existing metadata is preserved
+  for (const key of Object.keys(originalMetadata)) {
+    if (key !== "workflow") {
+      console.log(`Checking preservation of ${key}`);
+      expect(updatedMetadata[key]).toEqual(originalMetadata[key]);
+    }
+  }
 });

@@ -1,16 +1,22 @@
 interface FileSystemFileHandle {
-  kind: 'file';
+  kind: "file";
   name: string;
   getFile(): Promise<File>;
   createWritable(): Promise<FileSystemWritableFileStream>;
 }
 
 interface FileSystemDirectoryHandle {
-  kind: 'directory';
+  kind: "directory";
   name: string;
   values(): AsyncIterable<FileSystemFileHandle | FileSystemDirectoryHandle>;
-  getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>;
-  getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle>;
+  getFileHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<FileSystemFileHandle>;
+  getDirectoryHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<FileSystemDirectoryHandle>;
 }
 
 interface FileSystemWritableFileStream extends WritableStream {
@@ -29,9 +35,9 @@ interface Window {
       accept: Record<string, string[]>;
     }>;
   }): Promise<FileSystemFileHandle[]>;
-  
+
   showDirectoryPicker(options?: {
     id?: string;
-    mode?: 'read' | 'readwrite';
+    mode?: "read" | "readwrite";
   }): Promise<FileSystemDirectoryHandle>;
 }

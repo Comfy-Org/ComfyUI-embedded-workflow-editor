@@ -79,27 +79,36 @@ export default function Home() {
       setUrlInput(url);
       toast.loading(`Loading file from URL: ${url}`);
 
-      const response = await fetch(url);
+      // Use the proxy endpoint instead of fetching directly
+      const proxyUrl = `/api/media?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+      
       if (!response.ok) {
-        throw new Error(
-          `Failed to fetch file from URL: ${response.statusText}`,
-        );
+        // Try to parse error message from JSON response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch file from URL: ${response.statusText}`);
+        } catch (e) {
+          throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
+        }
       }
 
       const contentType = response.headers.get("content-type") || "";
-      const extension = url.split(".").pop()?.toLowerCase() || "";
-
-      const isSupported = ["png", "webp", "flac", "mp4"].some(
-        (ext) => contentType.includes(ext) || extension === ext,
-      );
-
-      if (!isSupported) {
-        throw new Error(`Unsupported file format: ${contentType || extension}`);
+      // Try to get filename from Content-Disposition header, fallback to URL
+      let fileName = "file";
+      const contentDisposition = response.headers.get("content-disposition");
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"']+)/i);
+        if (match && match[1]) {
+          fileName = decodeURIComponent(match[1]);
+        }
       }
-
+      if (fileName === "file") {
+        fileName = url.split("/").pop() || "file";
+      }
+      
       const blob = await response.blob();
-      const fileName = url.split("/").pop() || "file";
-      const file = new File([blob], fileName, { type: blob.type });
+      const file = new File([blob], fileName, { type: contentType || blob.type });
 
       await gotFiles([file]);
       toast.dismiss();

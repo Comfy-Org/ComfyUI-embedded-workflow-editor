@@ -25,10 +25,12 @@
     "react": "^18",
     "react-dom": "^18",
     "react-hot-toast": "^2.5.2",
+    "react-use": "^17.6.0",
     "sflow": "^1.16.25",
     "swr": "^2.2.5",
     "timeago-react": "^3.0.6",
     "uint8array-extras": "^1.4.0",
+    "use-hooks": "^2.0.0-rc.5",
     "use-manifest-pwa": "^1.0.0",
     "valtio": "^2.1.2"
   },

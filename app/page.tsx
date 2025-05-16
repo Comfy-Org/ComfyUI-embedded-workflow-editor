@@ -3,12 +3,14 @@ import Editor, { useMonaco } from "@monaco-editor/react";
 import clsx from "clsx";
 import md5 from "md5";
 import { motion } from "motion/react";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import "react-use";
+import { useSearchParam } from "react-use";
 import sflow, { sf } from "sflow";
 import useSWR from "swr";
 import TimeAgo from "timeago-react";
+import "use-hooks";
 import useManifestPWA from "use-manifest-pwa";
 import { useSnapshot } from "valtio";
 import { persistState } from "./persistState";
@@ -63,8 +65,7 @@ export default function Home() {
     Awaited<ReturnType<typeof readWorkflowInfo>>[]
   >([]);
 
-  const searchParams = useSearchParams();
-  const urlParam = searchParams.get("url") as string | string[] | undefined;
+  const urlParam = useSearchParam("url");
   useEffect(() => {
     if (urlParam) {
       if (Array.isArray(urlParam)) {

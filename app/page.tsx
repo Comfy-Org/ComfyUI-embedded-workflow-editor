@@ -41,7 +41,7 @@ export default function Home() {
 
   useSWR(
     "/filelist",
-    async () => workingDir && (await scanFilelist(workingDir))
+    async () => workingDir && (await scanFilelist(workingDir)),
   );
 
   const monaco = useMonaco();
@@ -51,7 +51,7 @@ export default function Home() {
     if (!monaco || !editor) return;
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       const savebtn = window.document.querySelector(
-        "#save-workflow"
+        "#save-workflow",
       ) as HTMLButtonElement;
       savebtn?.click();
       // editor.getAction("editor.action.formatDocument")!.run();
@@ -82,7 +82,7 @@ export default function Home() {
           await readWorkflowInfo(e).catch((err) => {
             toast.error(`FAIL to read ${e.name}\nCause:${String(err)}`);
             return null;
-          })
+          }),
       )
       .filter() // filter empty
       .toArray();
@@ -326,8 +326,8 @@ export default function Home() {
                 {!workingDir
                   ? "(download)"
                   : snap.editing_filename === tasklist[snap.editing_index]?.name
-                  ? "(overwrite)"
-                  : "(save as)"}
+                    ? "(overwrite)"
+                    : "(save as)"}
               </span>
             </button>
           </div>
@@ -401,7 +401,7 @@ export default function Home() {
 
   async function writeToWorkingDir(
     workingDir: FileSystemDirectoryHandle,
-    file: File
+    file: File,
   ) {
     const h = await workingDir.getFileHandle(file.name, {
       create: true,
@@ -460,7 +460,7 @@ function tryPrettyJson(json: string) {
 
 function chooseNthFileToEdit(
   tasklist: Awaited<ReturnType<typeof readWorkflowInfo>>[],
-  i: number
+  i: number,
 ) {
   if (!tasklist[i]) {
     persistState.editing_index = -1;

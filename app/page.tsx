@@ -81,9 +81,7 @@ export default function Home() {
           }),
       )
       .filter(
-        (
-          e,
-        ): e is Awaited<ReturnType<typeof readWorkflowInfo>> => e !== null,
+        (e): e is Awaited<ReturnType<typeof readWorkflowInfo>> => e !== null,
       )
       .toArray()) as Awaited<ReturnType<typeof readWorkflowInfo>>[];
     setWorkingDir(undefined);

@@ -67,7 +67,7 @@ export default function Home() {
   async function gotFiles(input: File[] | FileList) {
     const files = input instanceof FileList ? fileListToArray(input) : input;
     if (!files.length) return toast.error("No files provided.");
-    const readedWorkflowInfos = await sflow(files)
+    const readedWorkflowInfos = (await sflow(files)
       .filter((e) => {
         if (e.name.match(/\.(png|flac|webp|mp4|mp3)$/i)) return true;
         toast.error("Not Supported format discarded: " + e.name);
@@ -80,8 +80,12 @@ export default function Home() {
             return null;
           }),
       )
-      .filter()
-      .toArray();
+      .filter(
+        (
+          e,
+        ): e is Awaited<ReturnType<typeof readWorkflowInfo>> => e !== null,
+      )
+      .toArray()) as Awaited<ReturnType<typeof readWorkflowInfo>>[];
     setWorkingDir(undefined);
     setTasklist(readedWorkflowInfos);
     chooseNthFileToEdit(readedWorkflowInfos, 0);
@@ -241,9 +245,9 @@ export default function Home() {
                     excludeAcceptAllOption: true,
                     multiple: true,
                   });
-                const files = await sf(filesHandles)
+                const files = (await sf(filesHandles)
                   .map((e) => e.getFile())
-                  .toArray();
+                  .toArray()) as File[];
                 return gotFiles(files);
               }}
             >
@@ -534,13 +538,16 @@ export default function Home() {
 
   async function scanFilelist(workingDir: FileSystemDirectoryHandle) {
     const aIter = workingDir.values() as AsyncIterable<FileSystemFileHandle>;
-    const readed = await sf(aIter)
+    const readed = (await sf(aIter)
       .filter((e) => e.kind === "file")
       .filter((e) => e.name.match(/\.(png|flac|webp|mp4|mp3)$/i))
       .map(async (e) => await e.getFile())
-      .map(async (e) => await readWorkflowInfo(e))
-      .filter((e) => e.workflowJson)
-      .toArray();
+      .map(async (e) => await readWorkflowInfo(e as File))
+      .filter(
+        (e): e is Awaited<ReturnType<typeof readWorkflowInfo>> =>
+          !!(e as Awaited<ReturnType<typeof readWorkflowInfo>>).workflowJson,
+      )
+      .toArray()) as Awaited<ReturnType<typeof readWorkflowInfo>>[];
     setTasklist(readed);
     if (snap.editing_index === -1) chooseNthFileToEdit(readed, 0);
     return readed;
